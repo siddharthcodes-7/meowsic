@@ -23,7 +23,7 @@ fun HomeScreen() {
             .background(background)
             .padding(24.dp)
     ) {
-        Text("meo music", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text("meowsic", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
         Text("Your music. Your world.", color = Color.LightGray, fontSize = 15.sp)
 
         Spacer(modifier = Modifier.height(35.dp))

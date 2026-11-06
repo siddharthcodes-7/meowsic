@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.surya.meowsic.presentation.home.HomeScreen
 import com.surya.meowsic.presentation.player.MiniPlayer
+import com.surya.meowsic.presentation.search.SearchScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,7 +82,7 @@ fun MeoMusicApp() {
         ) {
             when (selectedTab) {
                 0 -> HomeScreen()
-                1 -> SimpleScreen("Search")
+                1 -> SearchScreen()
                 2 -> SimpleScreen("Your Library")
                 3 -> SimpleScreen("Profile")
             }
