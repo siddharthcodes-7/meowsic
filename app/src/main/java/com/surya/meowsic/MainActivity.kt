@@ -3,6 +3,7 @@ package com.surya.meowsic
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -14,31 +15,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.surya.meowsic.data.stream.YouTubeStreamResolver
 import com.surya.meowsic.presentation.home.HomeScreen
 import com.surya.meowsic.presentation.player.MiniPlayer
 import com.surya.meowsic.presentation.search.SearchScreen
-
-// NewPipe and Localization imports
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.localization.ContentCountry
-import org.schabi.newpipe.extractor.localization.Localization
-
-// Your custom Downloader import
-import com.surya.meowsic.data.stream.NewPipeDownloader
+import com.surya.meowsic.presentation.search.SearchViewModel
+import com.surya.meowsic.ui.theme.MeowsicTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
-        // Initialize NewPipe with US localization to bypass YouTube consent blocks
-        NewPipe.init(
-            NewPipeDownloader(),
-            Localization("en", "US"),
-            ContentCountry("US")
-        )
+        // Authoritative NewPipe initialization (single-point initialization)
+        YouTubeStreamResolver.initialize()
 
         setContent {
-            MeoMusicApp()
+            MeowsicTheme {
+                MeoMusicApp()
+            }
         }
     }
 }
@@ -47,14 +43,16 @@ val background = Color(0xFF101010)
 val accent = Color(0xFFB9F36A)
 
 @Composable
-fun MeoMusicApp() {
-    var selectedTab by remember { mutableIntStateOf(0) }
+fun MeoMusicApp(
+    searchViewModel: SearchViewModel = viewModel()
+) {
+    var selectedTab by remember { mutableIntStateOf(1) } // Default to Search tab so user can immediately search & play
 
     Scaffold(
         containerColor = background,
         bottomBar = {
             Column {
-                MiniPlayer()
+                MiniPlayer(viewModel = searchViewModel)
 
                 NavigationBar(
                     containerColor = Color(0xFF181818)
@@ -98,7 +96,7 @@ fun MeoMusicApp() {
         ) {
             when (selectedTab) {
                 0 -> HomeScreen()
-                1 -> SearchScreen()
+                1 -> SearchScreen(viewModel = searchViewModel)
                 2 -> SimpleScreen("Your Library")
                 3 -> SimpleScreen("Profile")
             }
