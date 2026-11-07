@@ -18,9 +18,25 @@ import com.surya.meowsic.presentation.home.HomeScreen
 import com.surya.meowsic.presentation.player.MiniPlayer
 import com.surya.meowsic.presentation.search.SearchScreen
 
+// NewPipe and Localization imports
+import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
+
+// Your custom Downloader import
+import com.surya.meowsic.data.stream.NewPipeDownloader
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Initialize NewPipe with US localization to bypass YouTube consent blocks
+        NewPipe.init(
+            NewPipeDownloader(),
+            Localization("en", "US"),
+            ContentCountry("US")
+        )
+
         setContent {
             MeoMusicApp()
         }
