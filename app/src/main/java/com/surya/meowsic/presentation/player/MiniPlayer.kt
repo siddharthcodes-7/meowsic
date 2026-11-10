@@ -8,10 +8,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -34,11 +34,13 @@ private val PlayerBackground = Color(0xFF1C1C1C)
 @Composable
 fun MiniPlayer(
     viewModel: SearchViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenFullScreen: () -> Unit = { viewModel.openFullScreen() }
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isResolving by viewModel.isResolving.collectAsState()
+    val isBuffering by viewModel.isBuffering.collectAsState()
     val position by viewModel.playbackPosition.collectAsState()
     val duration by viewModel.duration.collectAsState()
 
@@ -68,7 +70,7 @@ fun MiniPlayer(
                     color = AccentColor,
                     trackColor = Color(0xFF333333)
                 )
-            } else if (isResolving) {
+            } else if (isResolving || isBuffering) {
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -82,7 +84,7 @@ fun MiniPlayer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
-                    .clickable { viewModel.togglePlayPause() }
+                    .clickable { onOpenFullScreen() }
                     .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -126,8 +128,12 @@ fun MiniPlayer(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = if (isResolving) "Loading audio..." else song.artist,
-                        color = if (isResolving) AccentColor else Color.LightGray,
+                        text = when {
+                            isResolving -> "Extracting audio..."
+                            isBuffering -> "Buffering..."
+                            else -> song.artist
+                        },
+                        color = if (isResolving || isBuffering) AccentColor else Color.LightGray,
                         fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -154,13 +160,13 @@ fun MiniPlayer(
                     }
                 }
 
-                // Close / Stop Playback Button
-                IconButton(onClick = { viewModel.stopPlayback() }) {
+                // Next Button
+                IconButton(onClick = { viewModel.playNext() }) {
                     Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Stop",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next",
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }

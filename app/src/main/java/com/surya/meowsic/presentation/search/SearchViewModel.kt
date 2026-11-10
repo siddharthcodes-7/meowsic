@@ -12,10 +12,10 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import com.surya.meowsic.data.repository.YouTubeRepository
 import com.surya.meowsic.data.stream.YouTubeStreamResolver
 import com.surya.meowsic.domain.Song
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,10 +23,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
-class SearchViewModel @JvmOverloads constructor(
-    application: Application,
-    private val repository: YouTubeRepository = YouTubeRepository()
+enum class RepeatMode {
+    OFF,
+    ALL,
+    ONE
+}
+
+class SearchViewModel(
+    application: Application
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -79,6 +87,24 @@ class SearchViewModel @JvmOverloads constructor(
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration.asStateFlow()
 
+    private val _isBuffering = MutableStateFlow(false)
+    val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
+
+    private val _repeatMode = MutableStateFlow(RepeatMode.OFF)
+    val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
+
+    private val _isShuffle = MutableStateFlow(false)
+    val isShuffle: StateFlow<Boolean> = _isShuffle.asStateFlow()
+
+    private val _queue = MutableStateFlow<List<Song>>(emptyList())
+    val queue: StateFlow<List<Song>> = _queue.asStateFlow()
+
+    private val _currentIndex = MutableStateFlow(-1)
+    val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
+
+    private val _isFullScreenOpen = MutableStateFlow(false)
+    val isFullScreenOpen: StateFlow<Boolean> = _isFullScreenOpen.asStateFlow()
+
     // ------------------------------------------------
     // INTERNAL COROUTINE JOBS
     // ------------------------------------------------
@@ -107,16 +133,24 @@ class SearchViewModel @JvmOverloads constructor(
                 Player.STATE_READY -> {
                     _duration.value = player.duration.coerceAtLeast(0L)
                     _isResolving.value = false
+                    _isBuffering.value = false
+                }
+                Player.STATE_BUFFERING -> {
+                    _isBuffering.value = true
                 }
                 Player.STATE_ENDED -> {
                     _isPlaying.value = false
+                    _isBuffering.value = false
                     stopProgressTracker()
-                }
-                Player.STATE_BUFFERING -> {
-                    // Buffering can happen during playback
+                    if (_repeatMode.value == RepeatMode.ONE) {
+                        seekTo(0)
+                        player.play()
+                    } else {
+                        playNext(auto = true)
+                    }
                 }
                 Player.STATE_IDLE -> {
-                    // Idle state
+                    _isBuffering.value = false
                 }
             }
         }
@@ -124,6 +158,7 @@ class SearchViewModel @JvmOverloads constructor(
         override fun onPlayerError(error: PlaybackException) {
             Log.e(TAG, "ExoPlayer playback error: ${error.errorCodeName}", error)
             _isResolving.value = false
+            _isBuffering.value = false
             _isPlaying.value = false
 
             val failedSong = _currentSong.value
@@ -151,9 +186,12 @@ class SearchViewModel @JvmOverloads constructor(
 
     fun onSearchQueryChanged(newQuery: String) {
         _searchQuery.value = newQuery
-        searchYouTube(newQuery)
     }
 
+    /**
+     * Executes a YouTube search using NewPipe's InnerTube extractor.
+     * Called from SearchScreen with 500ms debounce via LaunchedEffect.
+     */
     fun searchYouTube(query: String) {
         searchJob?.cancel()
 
@@ -166,34 +204,76 @@ class SearchViewModel @JvmOverloads constructor(
         }
 
         searchJob = viewModelScope.launch {
-            // Debounce to prevent unnecessary network requests while typing
-            delay(400)
-
             _isSearching.value = true
             _errorMessage.value = null
 
             try {
-                Log.d(TAG, "Searching YouTube: $trimmed")
-                val result = repository.searchSongs(trimmed)
-
-                result.onSuccess { songs ->
-                    _searchResults.value = songs
-                    Log.d(TAG, "Search completed: ${songs.size} songs found")
-                    if (songs.isEmpty()) {
-                        _errorMessage.value = "No songs found for '$trimmed'"
-                    }
-                }.onFailure { throwable ->
-                    Log.e(TAG, "Search failed", throwable)
-                    _errorMessage.value = throwable.localizedMessage ?: "Search failed"
+                Log.d(TAG, "Searching YouTube via NewPipe InnerTube: $trimmed")
+                val songs = searchWithNewPipe(trimmed)
+                _searchResults.value = songs
+                Log.d(TAG, "Search completed: ${songs.size} songs found")
+                if (songs.isEmpty()) {
+                    _errorMessage.value = "No songs found for '$trimmed'"
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error in search", e)
-                _errorMessage.value = "Search error: ${e.message}"
+                Log.e(TAG, "Search failed", e)
+                _errorMessage.value = "Search failed: ${e.localizedMessage ?: e.message}"
+                _searchResults.value = emptyList()
             } finally {
                 _isSearching.value = false
             }
+        }
+    }
+
+    private suspend fun searchWithNewPipe(query: String): List<Song> = withContext(Dispatchers.IO) {
+        val extractor = ServiceList.YouTube.getSearchExtractor(query)
+        extractor.fetchPage()
+        val items = extractor.initialPage?.items ?: emptyList()
+        items.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
+            try {
+                val videoId = extractVideoId(item.url) ?: return@mapNotNull null
+                val thumbnailUrl = item.thumbnails.firstOrNull()?.url ?: ""
+                val durationStr = formatDuration(item.duration)
+                Song(
+                    id = videoId,
+                    title = item.name ?: "Unknown",
+                    artist = item.uploaderName ?: "Unknown",
+                    thumbnailUrl = thumbnailUrl,
+                    duration = durationStr
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to map search result item: ${e.message}")
+                null
+            }
+        }
+    }
+
+    private fun extractVideoId(url: String): String? {
+        return try {
+            val uri = Uri.parse(url)
+            // Standard: https://www.youtube.com/watch?v=VIDEO_ID
+            uri.getQueryParameter("v")
+                // Short URL: https://youtu.be/VIDEO_ID
+                ?: if (uri.host?.contains("youtu.be") == true) uri.pathSegments.firstOrNull() else null
+                // Shorts: https://www.youtube.com/shorts/VIDEO_ID
+                ?: if (url.contains("/shorts/")) uri.pathSegments.lastOrNull() else null
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to extract video ID from URL: $url")
+            null
+        }
+    }
+
+    private fun formatDuration(seconds: Long): String {
+        if (seconds <= 0) return ""
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        val secs = seconds % 60
+        return if (hours > 0) {
+            "$hours:${String.format("%02d", minutes)}:${String.format("%02d", secs)}"
+        } else {
+            "$minutes:${String.format("%02d", secs)}"
         }
     }
 
@@ -201,18 +281,55 @@ class SearchViewModel @JvmOverloads constructor(
     // PLAYBACK OPERATIONS
     // ------------------------------------------------
 
-    fun playSong(song: Song, isRetry: Boolean = false) {
+    fun openFullScreen() {
+        _isFullScreenOpen.value = true
+    }
+
+    fun closeFullScreen() {
+        _isFullScreenOpen.value = false
+    }
+
+    fun toggleShuffle() {
+        _isShuffle.value = !_isShuffle.value
+    }
+
+    fun toggleRepeat() {
+        _repeatMode.value = when (_repeatMode.value) {
+            RepeatMode.OFF -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.OFF
+        }
+    }
+
+    fun playSong(song: Song, playlist: List<Song>? = null, isRetry: Boolean = false) {
         if (!isRetry) {
             hasRetriedCurrentSong = false
         }
 
-        Log.d(TAG, "Playing song: ${song.title} (${song.id})")
+        if (playlist != null && playlist.isNotEmpty()) {
+            _queue.value = playlist
+            val idx = playlist.indexOfFirst { it.id == song.id }
+            _currentIndex.value = if (idx >= 0) idx else 0
+        } else {
+            val currentList = _queue.value
+            val idx = currentList.indexOfFirst { it.id == song.id }
+            if (idx >= 0) {
+                _currentIndex.value = idx
+            } else {
+                _queue.value = currentList + song
+                _currentIndex.value = _queue.value.lastIndex
+            }
+        }
+
+        Log.d(TAG, "Playing song: ${song.title} (${song.id}) at index ${_currentIndex.value}")
         playbackJob?.cancel()
 
         playbackJob = viewModelScope.launch {
             _isResolving.value = true
             _errorMessage.value = null
             _currentSong.value = song
+            _playbackPosition.value = 0L
+            _duration.value = 0L
 
             try {
                 val audioUrl = YouTubeStreamResolver.resolveAudioUrl(
@@ -250,6 +367,82 @@ class SearchViewModel @JvmOverloads constructor(
                 _errorMessage.value = "Cannot play ${song.title}: ${e.localizedMessage ?: e.message}"
                 _isResolving.value = false
             }
+        }
+    }
+
+    fun playNext(auto: Boolean = false) {
+        val currentList = _queue.value
+        if (currentList.isEmpty()) {
+            val current = _currentSong.value
+            if (current != null) {
+                seekTo(0)
+                player.play()
+            }
+            return
+        }
+
+        if (_repeatMode.value == RepeatMode.ONE && auto) {
+            seekTo(0)
+            player.play()
+            return
+        }
+
+        val currentIdx = _currentIndex.value
+        val nextIdx = when {
+            _isShuffle.value && currentList.size > 1 -> {
+                val validIndices = currentList.indices.filter { it != currentIdx }
+                if (validIndices.isNotEmpty()) validIndices.random() else currentIdx
+            }
+            currentIdx + 1 < currentList.size -> currentIdx + 1
+            _repeatMode.value == RepeatMode.ALL -> 0
+            else -> -1
+        }
+
+        if (nextIdx != -1 && nextIdx in currentList.indices) {
+            _currentIndex.value = nextIdx
+            playSong(currentList[nextIdx], playlist = currentList)
+        } else {
+            if (!auto) {
+                _currentIndex.value = 0
+                playSong(currentList[0], playlist = currentList)
+            } else {
+                _isPlaying.value = false
+                stopProgressTracker()
+            }
+        }
+    }
+
+    fun playPrevious() {
+        if (player.currentPosition > 3000L) {
+            seekTo(0)
+            player.play()
+            return
+        }
+
+        val currentList = _queue.value
+        if (currentList.isEmpty()) {
+            seekTo(0)
+            player.play()
+            return
+        }
+
+        val currentIdx = _currentIndex.value
+        val prevIdx = when {
+            _isShuffle.value && currentList.size > 1 -> {
+                val validIndices = currentList.indices.filter { it != currentIdx }
+                if (validIndices.isNotEmpty()) validIndices.random() else currentIdx
+            }
+            currentIdx - 1 >= 0 -> currentIdx - 1
+            _repeatMode.value == RepeatMode.ALL -> currentList.size - 1
+            else -> 0
+        }
+
+        if (prevIdx in currentList.indices && prevIdx != currentIdx) {
+            _currentIndex.value = prevIdx
+            playSong(currentList[prevIdx], playlist = currentList)
+        } else {
+            seekTo(0)
+            player.play()
         }
     }
 

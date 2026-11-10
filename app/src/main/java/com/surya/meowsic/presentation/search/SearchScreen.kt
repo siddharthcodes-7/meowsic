@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.surya.meowsic.domain.Song
+import kotlinx.coroutines.delay
 
 private val BackgroundColor = Color(0xFF101010)
 private val CardBackground = Color(0xFF1E1E1E)
@@ -38,13 +39,25 @@ private val ErrorColor = Color(0xFFFF5252)
 fun SearchScreen(
     viewModel: SearchViewModel
 ) {
-    val searchQuery by viewModel.searchQuery.collectAsState()
+    // Local mutable state for the text field — allows instant UI updates while debouncing the search
+    var searchQuery by remember { mutableStateOf("") }
+
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
     val isResolving by viewModel.isResolving.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+
+    // 500ms debounce: search fires 500ms after the user stops typing
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.length >= 2) {
+            delay(500L)
+            viewModel.searchYouTube(searchQuery)
+        } else {
+            viewModel.searchYouTube(searchQuery) // clears results for short queries
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -68,7 +81,10 @@ fun SearchScreen(
         // --------------------------------
         OutlinedTextField(
             value = searchQuery,
-            onValueChange = { viewModel.onSearchQueryChanged(it) },
+            onValueChange = { newValue ->
+                searchQuery = newValue
+                viewModel.onSearchQueryChanged(newValue)
+            },
             placeholder = {
                 Text(
                     text = "Search songs, artists...",
@@ -85,7 +101,10 @@ fun SearchScreen(
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                    IconButton(onClick = {
+                        searchQuery = ""
+                        viewModel.onSearchQueryChanged("")
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Clear,
                             contentDescription = "Clear search",
@@ -243,7 +262,7 @@ fun SearchScreen(
                             if (isCurrent) {
                                 viewModel.togglePlayPause()
                             } else {
-                                viewModel.playSong(song)
+                                viewModel.playSong(song, playlist = searchResults)
                             }
                         }
                     )

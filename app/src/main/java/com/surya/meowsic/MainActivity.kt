@@ -2,8 +2,12 @@ package com.surya.meowsic
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -18,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.surya.meowsic.data.stream.YouTubeStreamResolver
 import com.surya.meowsic.presentation.home.HomeScreen
+import com.surya.meowsic.presentation.player.FullScreenPlayer
 import com.surya.meowsic.presentation.player.MiniPlayer
 import com.surya.meowsic.presentation.search.SearchScreen
 import com.surya.meowsic.presentation.search.SearchViewModel
@@ -47,59 +52,84 @@ fun MeoMusicApp(
     searchViewModel: SearchViewModel = viewModel()
 ) {
     var selectedTab by remember { mutableIntStateOf(1) } // Default to Search tab so user can immediately search & play
+    val isFullScreenPlayerOpen by searchViewModel.isFullScreenOpen.collectAsState()
+    val currentSong by searchViewModel.currentSong.collectAsState()
 
-    Scaffold(
-        containerColor = background,
-        bottomBar = {
-            Column {
-                MiniPlayer(viewModel = searchViewModel)
+    // Handle back button to collapse full-screen player when visible
+    BackHandler(enabled = isFullScreenPlayerOpen) {
+        searchViewModel.closeFullScreen()
+    }
 
-                NavigationBar(
-                    containerColor = Color(0xFF181818)
-                ) {
-                    val items = listOf("Home", "Search", "Library", "Profile")
-                    val icons = listOf(
-                        Icons.Default.Home,
-                        Icons.Default.Search,
-                        Icons.Default.LibraryMusic,
-                        Icons.Default.Person
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = background,
+            bottomBar = {
+                Column {
+                    MiniPlayer(
+                        viewModel = searchViewModel,
+                        onOpenFullScreen = { searchViewModel.openFullScreen() }
                     )
 
-                    items.forEachIndexed { index, title ->
-                        NavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            icon = {
-                                Icon(
-                                    icons[index],
-                                    contentDescription = title
-                                )
-                            },
-                            label = { Text(title) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = accent,
-                                selectedTextColor = accent,
-                                indicatorColor = Color(0xFF303D20),
-                                unselectedIconColor = Color.Gray,
-                                unselectedTextColor = Color.Gray
-                            )
+                    NavigationBar(
+                        containerColor = Color(0xFF181818)
+                    ) {
+                        val items = listOf("Home", "Search", "Library", "Profile")
+                        val icons = listOf(
+                            Icons.Default.Home,
+                            Icons.Default.Search,
+                            Icons.Default.LibraryMusic,
+                            Icons.Default.Person
                         )
+
+                        items.forEachIndexed { index, title ->
+                            NavigationBarItem(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                icon = {
+                                    Icon(
+                                        icons[index],
+                                        contentDescription = title
+                                    )
+                                },
+                                label = { Text(title) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = accent,
+                                    selectedTextColor = accent,
+                                    indicatorColor = Color(0xFF303D20),
+                                    unselectedIconColor = Color.Gray,
+                                    unselectedTextColor = Color.Gray
+                                )
+                            )
+                        }
                     }
                 }
             }
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            when (selectedTab) {
-                0 -> HomeScreen()
-                1 -> SearchScreen(viewModel = searchViewModel)
-                2 -> SimpleScreen("Your Library")
-                3 -> SimpleScreen("Profile")
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                when (selectedTab) {
+                    0 -> HomeScreen()
+                    1 -> SearchScreen(viewModel = searchViewModel)
+                    2 -> SimpleScreen("Your Library")
+                    3 -> SimpleScreen("Profile")
+                }
             }
+        }
+
+        // Full-screen Spotify-inspired music player
+        AnimatedVisibility(
+            visible = isFullScreenPlayerOpen && currentSong != null,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            FullScreenPlayer(
+                viewModel = searchViewModel,
+                onDismiss = { searchViewModel.closeFullScreen() }
+            )
         }
     }
 }

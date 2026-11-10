@@ -1,15 +1,6 @@
-import java.util.Properties
-import java.io.FileInputStream
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-}
-
-val localProperties = Properties()
-val localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -17,7 +8,6 @@ android {
     compileSdk = 37
 
     buildFeatures {
-        buildConfig = true
         compose = true
     }
 
@@ -28,9 +18,6 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        val apiKey = localProperties.getProperty("YOUTUBE_API_KEY") ?: ""
-        buildConfigField("String", "YOUTUBE_API_KEY", "\"$apiKey\"")
     }
 
     buildTypes {
@@ -52,8 +39,6 @@ android {
 dependencies {
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.25.2")
     implementation("io.coil-kt:coil-compose:2.6.0")
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
     // ExoPlayer / Media3
     implementation("androidx.media3:media3-exoplayer:1.3.1")
