@@ -4,10 +4,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -28,18 +30,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.surya.meowsic.domain.Song
+import com.surya.meowsic.ui.components.LiquidGlassCard
+import com.surya.meowsic.ui.theme.LiquidGlassTokens
 import kotlinx.coroutines.delay
-
-private val BackgroundColor = Color(0xFF101010)
-private val CardBackground = Color(0xFF1E1E1E)
-private val AccentColor = Color(0xFFB9F36A)
-private val ErrorColor = Color(0xFFFF5252)
 
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel
 ) {
-    // Local mutable state for the text field — allows instant UI updates while debouncing the search
+    // Local mutable state for the text field — allows instant UI updates while debouncing search
     var searchQuery by remember { mutableStateOf("") }
 
     val searchResults by viewModel.searchResults.collectAsState()
@@ -62,7 +61,7 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundColor)
+            .background(LiquidGlassTokens.AmoledVoid)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // --------------------------------
@@ -70,14 +69,15 @@ fun SearchScreen(
         // --------------------------------
         Text(
             text = "Search",
-            color = Color.White,
-            fontSize = 30.sp,
+            color = LiquidGlassTokens.TextPrimary,
+            fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
+            letterSpacing = LiquidGlassTokens.HeaderLetterSpacing,
+            modifier = Modifier.padding(bottom = 14.dp)
         )
 
         // --------------------------------
-        // SEARCH INPUT BAR
+        // SEARCH INPUT BAR (LIQUID GLASS STYLED)
         // --------------------------------
         OutlinedTextField(
             value = searchQuery,
@@ -87,8 +87,8 @@ fun SearchScreen(
             },
             placeholder = {
                 Text(
-                    text = "Search songs, artists...",
-                    color = Color.Gray,
+                    text = "Search songs, artists, channels...",
+                    color = LiquidGlassTokens.TextMuted,
                     fontSize = 15.sp
                 )
             },
@@ -96,7 +96,7 @@ fun SearchScreen(
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = if (searchQuery.isNotEmpty()) AccentColor else Color.Gray
+                    tint = if (searchQuery.isNotEmpty()) LiquidGlassTokens.ElectricLime else LiquidGlassTokens.TextMuted
                 )
             },
             trailingIcon = {
@@ -108,23 +108,29 @@ fun SearchScreen(
                         Icon(
                             imageVector = Icons.Default.Clear,
                             contentDescription = "Clear search",
-                            tint = Color.LightGray
+                            tint = LiquidGlassTokens.TextSecondary
                         )
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    brush = LiquidGlassTokens.SpecularRimGradient,
+                    shape = RoundedCornerShape(18.dp)
+                ),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = CardBackground,
-                unfocusedContainerColor = CardBackground,
-                focusedBorderColor = AccentColor,
-                unfocusedBorderColor = Color(0xFF333333),
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                cursorColor = AccentColor
+                focusedContainerColor = LiquidGlassTokens.SurfaceOledFallback,
+                unfocusedContainerColor = LiquidGlassTokens.SurfaceOledFallback,
+                focusedBorderColor = LiquidGlassTokens.ElectricLime,
+                unfocusedBorderColor = Color.Transparent,
+                focusedTextColor = LiquidGlassTokens.TextPrimary,
+                unfocusedTextColor = LiquidGlassTokens.TextPrimary,
+                cursorColor = LiquidGlassTokens.ElectricLime
             ),
             singleLine = true,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(18.dp)
         )
 
         // --------------------------------
@@ -132,16 +138,16 @@ fun SearchScreen(
         // --------------------------------
         AnimatedVisibility(
             visible = isSearching,
-            enter = fadeIn(),
-            exit = fadeOut()
+            enter = fadeIn(animationSpec = LiquidGlassTokens.TactileSpringSpecFloat),
+            exit = fadeOut(animationSpec = LiquidGlassTokens.TactileSpringSpecFloat)
         ) {
             LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp)
                     .height(3.dp),
-                color = AccentColor,
-                trackColor = Color(0xFF262626)
+                color = LiquidGlassTokens.ElectricLime,
+                trackColor = Color(0x1FFFFFFF)
             )
         }
 
@@ -153,12 +159,12 @@ fun SearchScreen(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            Surface(
-                color = Color(0xFF1B2612),
-                shape = RoundedCornerShape(12.dp),
+            LiquidGlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
+                    .padding(vertical = 8.dp),
+                shape = RoundedCornerShape(14.dp),
+                isElevated = true
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -166,13 +172,13 @@ fun SearchScreen(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
-                        color = AccentColor,
+                        color = LiquidGlassTokens.ElectricLime,
                         strokeWidth = 2.dp
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Extracting audio for ${currentSong?.title}...",
-                        color = AccentColor,
+                        text = "Extracting liquid audio for ${currentSong?.title}...",
+                        color = LiquidGlassTokens.ElectricLime,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -186,12 +192,11 @@ fun SearchScreen(
         // ERROR BANNER
         // --------------------------------
         errorMessage?.let { error ->
-            Surface(
-                color = Color(0xFF2A1515),
-                shape = RoundedCornerShape(12.dp),
+            LiquidGlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
+                    .padding(vertical = 8.dp),
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -199,7 +204,7 @@ fun SearchScreen(
                 ) {
                     Text(
                         text = error,
-                        color = ErrorColor,
+                        color = LiquidGlassTokens.Crimson,
                         fontSize = 13.sp,
                         modifier = Modifier.weight(1f)
                     )
@@ -226,18 +231,21 @@ fun SearchScreen(
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = null,
-                        tint = Color(0xFF333333),
-                        modifier = Modifier.size(64.dp)
+                        tint = LiquidGlassTokens.TextMuted.copy(alpha = 0.25f),
+                        modifier = Modifier.size(72.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     Text(
                         text = "Find your favorite songs and artists",
-                        color = Color.Gray,
-                        fontSize = 15.sp
+                        color = LiquidGlassTokens.TextMuted,
+                        fontSize = 15.sp,
+                        letterSpacing = LiquidGlassTokens.HeaderLetterSpacing
                     )
                 }
             }
         } else {
+            // Virtualized list conforming to GPU Rasterization Budget:
+            // Static glass borders/gradients without per-row runtime blur
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -273,7 +281,7 @@ fun SearchScreen(
 }
 
 // ================================================
-// SONG RESULT ITEM
+// SONG RESULT ITEM (PERFORMANCE OPTIMIZED LIQUID GLASS)
 // ================================================
 
 @Composable
@@ -284,95 +292,112 @@ fun SongResultItem(
     isPlaying: Boolean = false,
     onClick: () -> Unit
 ) {
-    val backgroundColor = if (isCurrent) Color(0xFF1E2618) else CardBackground
-
-    Row(
+    LiquidGlassCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(backgroundColor)
-            .clickable { onClick() }
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        isElevated = isCurrent
     ) {
-        // THUMBNAIL
-        Box(
+        Row(
             modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF2B2B2B)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = song.thumbnailUrl,
-                contentDescription = song.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            // THUMBNAIL
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(LiquidGlassTokens.SurfaceOledFallback)
+                    .border(
+                        width = 1.dp,
+                        brush = LiquidGlassTokens.SpecularRimGradient,
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = song.thumbnailUrl,
+                    contentDescription = song.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-            if (isPlaying) {
+                if (isPlaying) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = "Playing",
+                            tint = LiquidGlassTokens.ElectricLime,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // SONG DETAILS
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = song.title,
+                    color = if (isCurrent) LiquidGlassTokens.ElectricLime else LiquidGlassTokens.TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = LiquidGlassTokens.HeaderLetterSpacing,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = song.artist,
+                    color = LiquidGlassTokens.TextSecondary,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // STATUS / ACTION BUTTON
+            if (isResolving) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = LiquidGlassTokens.ElectricLime,
+                    strokeWidth = 2.dp
+                )
+            } else if (isCurrent) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.45f)),
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(LiquidGlassTokens.SurfaceGlassActive)
+                        .border(
+                            width = 1.dp,
+                            color = LiquidGlassTokens.ElectricLime.copy(alpha = 0.6f),
+                            shape = CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MusicNote,
-                        contentDescription = "Playing",
-                        tint = AccentColor,
-                        modifier = Modifier.size(24.dp)
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = LiquidGlassTokens.ElectricLime,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // SONG DETAILS
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = song.title,
-                color = if (isCurrent) AccentColor else Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = song.artist,
-                color = Color.LightGray,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // STATUS / ACTION BUTTON
-        if (isResolving) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = AccentColor,
-                strokeWidth = 2.dp
-            )
-        } else if (isCurrent) {
-            IconButton(
-                onClick = onClick,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = AccentColor,
-                    modifier = Modifier.size(24.dp)
-                )
             }
         }
     }

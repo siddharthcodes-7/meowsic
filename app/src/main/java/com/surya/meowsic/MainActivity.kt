@@ -9,15 +9,19 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.surya.meowsic.data.stream.YouTubeStreamResolver
@@ -26,6 +30,7 @@ import com.surya.meowsic.presentation.player.FullScreenPlayer
 import com.surya.meowsic.presentation.player.MiniPlayer
 import com.surya.meowsic.presentation.search.SearchScreen
 import com.surya.meowsic.presentation.search.SearchViewModel
+import com.surya.meowsic.ui.theme.LiquidGlassTokens
 import com.surya.meowsic.ui.theme.MeowsicTheme
 
 class MainActivity : ComponentActivity() {
@@ -44,14 +49,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-val background = Color(0xFF101010)
-val accent = Color(0xFFB9F36A)
-
 @Composable
 fun MeoMusicApp(
     searchViewModel: SearchViewModel = viewModel()
 ) {
-    var selectedTab by remember { mutableIntStateOf(1) } // Default to Search tab so user can immediately search & play
+    var selectedTab by remember { mutableIntStateOf(1) } // Default to Search tab
     val isFullScreenPlayerOpen by searchViewModel.isFullScreenOpen.collectAsState()
     val currentSong by searchViewModel.currentSong.collectAsState()
 
@@ -60,46 +62,80 @@ fun MeoMusicApp(
         searchViewModel.closeFullScreen()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // 1. True Void Canvas: Pure #000000 global root background
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(LiquidGlassTokens.AmoledVoid)
+    ) {
         Scaffold(
-            containerColor = background,
+            containerColor = LiquidGlassTokens.AmoledVoid,
             bottomBar = {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                ) {
+                    // Floating Mini-Player
                     MiniPlayer(
                         viewModel = searchViewModel,
                         onOpenFullScreen = { searchViewModel.openFullScreen() }
                     )
 
-                    NavigationBar(
-                        containerColor = Color(0xFF181818)
-                    ) {
-                        val items = listOf("Home", "Search", "Library", "Profile")
-                        val icons = listOf(
-                            Icons.Default.Home,
-                            Icons.Default.Search,
-                            Icons.Default.LibraryMusic,
-                            Icons.Default.Person
-                        )
-
-                        items.forEachIndexed { index, title ->
-                            NavigationBarItem(
-                                selected = selectedTab == index,
-                                onClick = { selectedTab = index },
-                                icon = {
-                                    Icon(
-                                        icons[index],
-                                        contentDescription = title
-                                    )
-                                },
-                                label = { Text(title) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = accent,
-                                    selectedTextColor = accent,
-                                    indicatorColor = Color(0xFF303D20),
-                                    unselectedIconColor = Color.Gray,
-                                    unselectedTextColor = Color.Gray
-                                )
+                    // Floating Liquid Glass Navigation Bar
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(LiquidGlassTokens.SurfaceGlassElevated)
+                            .border(
+                                width = 1.dp,
+                                brush = LiquidGlassTokens.SpecularRimGradient,
+                                shape = RoundedCornerShape(24.dp)
                             )
+                    ) {
+                        NavigationBar(
+                            containerColor = Color.Transparent,
+                            tonalElevation = 0.dp,
+                            modifier = Modifier.height(64.dp)
+                        ) {
+                            val items = listOf("Home", "Search", "Library", "Profile")
+                            val icons = listOf(
+                                Icons.Default.Home,
+                                Icons.Default.Search,
+                                Icons.Default.LibraryMusic,
+                                Icons.Default.Person
+                            )
+
+                            items.forEachIndexed { index, title ->
+                                val isSelected = selectedTab == index
+                                NavigationBarItem(
+                                    selected = isSelected,
+                                    onClick = { selectedTab = index },
+                                    icon = {
+                                        Icon(
+                                            icons[index],
+                                            contentDescription = title,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = title,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = LiquidGlassTokens.ElectricLime,
+                                        selectedTextColor = LiquidGlassTokens.ElectricLime,
+                                        indicatorColor = LiquidGlassTokens.SurfaceGlassActive,
+                                        unselectedIconColor = LiquidGlassTokens.TextMuted,
+                                        unselectedTextColor = LiquidGlassTokens.TextMuted
+                                    )
+                                )
+                            }
                         }
                     }
                 }
@@ -119,11 +155,17 @@ fun MeoMusicApp(
             }
         }
 
-        // Full-screen Spotify-inspired music player
+        // Full-screen AMOLED Liquid Glass music player
         AnimatedVisibility(
             visible = isFullScreenPlayerOpen && currentSong != null,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = LiquidGlassTokens.SlideSpringSpec
+            ),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = LiquidGlassTokens.SlideSpringSpec
+            ),
             modifier = Modifier.fillMaxSize()
         ) {
             FullScreenPlayer(
@@ -139,9 +181,15 @@ fun SimpleScreen(title: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(background),
+            .background(LiquidGlassTokens.AmoledVoid),
         contentAlignment = Alignment.Center
     ) {
-        Text(title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(
+            text = title,
+            color = LiquidGlassTokens.TextPrimary,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = LiquidGlassTokens.HeaderLetterSpacing
+        )
     }
 }
