@@ -9,6 +9,14 @@ import org.schabi.newpipe.extractor.downloader.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+/**
+ * Custom OkHttp-backed Downloader for NewPipe Extractor.
+ *
+ * Implements HTTP request execution with:
+ * - 30-second connection and read/write timeouts.
+ * - Automatic redirect following.
+ * - Standard desktop browser User-Agent header injection for consistent API responses.
+ */
 class NewPipeDownloader(
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)

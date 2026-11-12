@@ -13,6 +13,15 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 
+/**
+ * High-performance audio stream extractor and URL resolver powered by NewPipe Extractor.
+ *
+ * Key Capabilities:
+ * - Single-instance thread-safe initialization with US English localization.
+ * - In-memory stream caching with smart URL expiration tracking (20-minute safety TTL).
+ * - Priority-based stream format selection preferring M4A over WebM for hardware-accelerated decoding.
+ * - Dispatchers.IO isolation to prevent blocking the main thread during stream extraction.
+ */
 object YouTubeStreamResolver {
 
     private const val TAG = "YouTubeStreamResolver"
