@@ -70,6 +70,12 @@ object GlassTokens {
     val supportsAGSL: Boolean
         get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
+    /**
+     * Device graphics capability tier categorization:
+     * - Tier A (API 33+ / Android 13+): Full hardware backdrop blur via RenderEffect + AGSL runtime shader refraction.
+     * - Tier B (API 31-32 / Android 12): Hardware backdrop blur via RenderEffect with standard alpha blending.
+     * - Tier C (API 26-30): Graceful fallback to opaque dark AMOLED surfaces with subtle scrim highlights.
+     */
     sealed class Tier {
         /** API 33+: backdrop blur + AGSL lens refraction */
         object A : Tier()
@@ -79,6 +85,9 @@ object GlassTokens {
         object C : Tier()
     }
 
+    /**
+     * Resolves the active graphics tier based on the running Android OS version.
+     */
     fun currentTier(): Tier = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> Tier.A
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> Tier.B
