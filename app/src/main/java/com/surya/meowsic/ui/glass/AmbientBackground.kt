@@ -21,7 +21,7 @@ import com.surya.meowsic.ui.theme.LiquidGlassTokens
 
 /**
  * Animated ambient background — slow drifting colored blobs.
- * Replaces the static [AmbientLightOrbs] with animated positions.
+ * Dynamic glowing background with animated positions.
  *
  * Uses [InfiniteTransition] with 20–40s durations to drift orb positions.
  * Each orb is an independent radial gradient drawn on Canvas.

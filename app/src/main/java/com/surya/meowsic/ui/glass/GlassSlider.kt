@@ -57,16 +57,19 @@ fun GlassSlider(
         0f
     }
 
-    val trackHeight by animateDpAsState(
+    val rawTrackHeight by animateDpAsState(
         targetValue = if (isDragging) 10.dp else 6.dp,
         animationSpec = LiquidGlassTokens.TactileSpringSpecDp,
         label = "GlassSliderHeight"
     )
-    val thumbRadius by animateDpAsState(
+    val rawThumbRadius by animateDpAsState(
         targetValue = if (isDragging) 10.dp else 0.dp,
         animationSpec = LiquidGlassTokens.TactileSpringSpecDp,
         label = "GlassThumbRadius"
     )
+
+    val trackHeight = rawTrackHeight.coerceAtLeast(2.dp)
+    val thumbRadius = rawThumbRadius.coerceAtLeast(0.dp)
 
     val currentDisplayMs = if (isDragging && durationMs > 0) {
         (dragProgress * durationMs).toLong()
@@ -129,18 +132,19 @@ fun GlassSlider(
                     )
 
                     // Glass thumb — white circle with palette glow
-                    if (thumbRadius.toPx() > 0f) {
+                    val thumbRadiusPx = thumbRadius.toPx().coerceAtLeast(0f)
+                    if (thumbRadiusPx > 0.5f) {
                         val thumbCenter = Offset(fillWidth, size.height / 2f)
                         // Glow ring
                         drawCircle(
                             color = palette.primary.copy(alpha = 0.4f),
-                            radius = thumbRadius.toPx() + 3.dp.toPx(),
+                            radius = thumbRadiusPx + 3.dp.toPx(),
                             center = thumbCenter
                         )
                         // White thumb
                         drawCircle(
                             color = Color.White,
-                            radius = thumbRadius.toPx(),
+                            radius = thumbRadiusPx,
                             center = thumbCenter
                         )
                         // Specular highlight on thumb

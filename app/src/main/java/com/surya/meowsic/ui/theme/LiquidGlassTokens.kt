@@ -2,6 +2,7 @@ package com.surya.meowsic.ui.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -28,6 +29,12 @@ object LiquidGlassTokens {
 
     /** Near-opaque OLED surface fallback for accessibility & low-power mode */
     val SurfaceOledFallback = Color(0xFF0D0D11)
+
+    /** Elevated OLED surface variant */
+    val SurfaceElevated = Color(0xFF151515)
+
+    /** Ambient color transition duration */
+    const val DurationAmbient = 800
 
     /** Primary Glass Surface (linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%)) */
     val SurfaceGlassPrimary = Brush.linearGradient(
@@ -162,10 +169,11 @@ object LiquidGlassTokens {
         stiffness = Spring.StiffnessMedium
     )
 
-    /** Responsive spring for Dp animations (e.g. Scrubber thickness) */
+    /** Responsive spring for Dp animations (e.g. Scrubber thickness) - critically damped so Dp animations never overshoot < 0.dp */
     val TactileSpringSpecDp = spring<Dp>(
-        dampingRatio = Spring.DampingRatioMediumBouncy,
-        stiffness = Spring.StiffnessMedium
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = 900f,
+        visibilityThreshold = Dp.VisibilityThreshold
     )
 
     /** Smooth spring for slide transitions (IntOffset) */

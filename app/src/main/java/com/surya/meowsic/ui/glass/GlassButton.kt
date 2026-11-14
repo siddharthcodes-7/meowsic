@@ -29,7 +29,7 @@ import com.surya.meowsic.ui.theme.LocalAmbientPalette
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffectgit
+import dev.chrisbanes.haze.hazeEffect
 
 /**
  * Glass icon button — small, circular, glass-tinted.
@@ -40,7 +40,7 @@ fun GlassIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
-    hazeState: HazeState? = LocalHazeState.current,
+    hazeState: HazeState? = null,
     enabled: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -54,9 +54,11 @@ fun GlassIconButton(
 
     val hazeStyle = remember {
         HazeStyle(
+            backgroundColor = GlassTokens.BackgroundColor,
             blurRadius = GlassTokens.BlurRadiusSubtle,
             tint = HazeTint(GlassTokens.TintPrimary),
-            noiseFactor = 0.06f
+            noiseFactor = 0.06f,
+            fallbackTint = GlassTokens.FallbackTint
         )
     }
 
@@ -157,7 +159,8 @@ fun GlassButton(
     shape: Shape = RoundedCornerShape(GlassTokens.CornerButton),
     isActive: Boolean = false,
     activeColor: Color = Color.Unspecified,
-    hazeState: HazeState? = LocalHazeState.current,
+    hazeState: HazeState? = null,
+    enabled: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -170,9 +173,11 @@ fun GlassButton(
 
     val hazeStyle = remember {
         HazeStyle(
+            backgroundColor = GlassTokens.BackgroundColor,
             blurRadius = GlassTokens.BlurRadiusSubtle,
             tint = HazeTint(GlassTokens.TintPrimary),
-            noiseFactor = 0.06f
+            noiseFactor = 0.06f,
+            fallbackTint = GlassTokens.FallbackTint
         )
     }
 

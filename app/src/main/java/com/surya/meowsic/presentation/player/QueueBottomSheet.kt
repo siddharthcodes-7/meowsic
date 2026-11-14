@@ -93,7 +93,8 @@ fun QueueBottomSheet(
                                     .fillMaxWidth()
                                     .clickable { onSongClick(song) },
                                 variant = GlassVariant.ELEVATED,
-                                shape = RoundedCornerShape(16.dp)
+                                shape = RoundedCornerShape(16.dp),
+                                enableBlur = false
                             ) {
                                 QueueSongRow(song = song, isCurrent = true, palette = palette, onSongClick = onSongClick)
                             }

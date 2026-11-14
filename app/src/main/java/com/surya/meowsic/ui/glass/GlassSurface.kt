@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +40,7 @@ enum class GlassVariant {
 /**
  * Core glass surface composable.
  *
- * On API 31+: real backdrop blur via haze [hazeChild] + specular rim.
+ * On API 31+: real backdrop blur via haze + specular rim.
  * On API 26-30: opaque tinted fallback + specular rim.
  *
  * Always reads [LocalHazeState] if [hazeState] is not passed explicitly.
@@ -53,6 +54,7 @@ fun GlassSurface(
     tintColor: Color? = null,
     showBevel: Boolean = true,
     cornerRadiusForBevel: Dp = 24.dp,
+    enableBlur: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
     val (blurRadius, tintC, noiseFactor) = when (variant) {
@@ -64,9 +66,11 @@ fun GlassSurface(
 
     val hazeStyle = remember(blurRadius, tintC, noiseFactor) {
         HazeStyle(
+            backgroundColor = GlassTokens.BackgroundColor,
             blurRadius = blurRadius,
             tint = HazeTint(tintC),
-            noiseFactor = noiseFactor
+            noiseFactor = noiseFactor,
+            fallbackTint = GlassTokens.FallbackTint
         )
     }
 
@@ -77,36 +81,39 @@ fun GlassSurface(
         GlassVariant.SUBTLE -> LiquidGlassTokens.SurfaceGlassPrimary
     }
 
-    val blurModifier = if (GlassTokens.supportsBlur && hazeState != null) {
+    val blurModifier = if (GlassTokens.supportsBlur && enableBlur && hazeState != null) {
         Modifier.hazeEffect(state = hazeState, style = hazeStyle)
     } else {
         Modifier.background(GlassTokens.FallbackSurface)
     }
 
-    Box(
-        modifier = modifier
-            .clip(shape)
-            .then(blurModifier)
-            .background(surfaceTint)
-            .border(1.dp, LiquidGlassTokens.SpecularRimGradient, shape)
-            .run {
-                if (showBevel) {
-                    drawWithContent {
-                        drawContent()
-                        drawLine(
-                            color = LiquidGlassTokens.SpecularBevelHighlight,
-                            start = Offset(x = cornerRadiusForBevel.toPx(), y = 1.dp.toPx()),
-                            end = Offset(
-                                x = size.width - cornerRadiusForBevel.toPx(),
-                                y = 1.dp.toPx()
-                            ),
-                            strokeWidth = 1.2.dp.toPx()
-                        )
-                    }
-                } else this
-            },
-        content = content
-    )
+    // Strip LocalHazeState for children so nested buttons/cards never create nested hazeEffect
+    CompositionLocalProvider(LocalHazeState provides null) {
+        Box(
+            modifier = modifier
+                .clip(shape)
+                .then(blurModifier)
+                .background(surfaceTint)
+                .border(1.dp, LiquidGlassTokens.SpecularRimGradient, shape)
+                .run {
+                    if (showBevel) {
+                        drawWithContent {
+                            drawContent()
+                            drawLine(
+                                color = LiquidGlassTokens.SpecularBevelHighlight,
+                                start = Offset(x = cornerRadiusForBevel.toPx(), y = 1.dp.toPx()),
+                                end = Offset(
+                                    x = size.width - cornerRadiusForBevel.toPx(),
+                                    y = 1.dp.toPx()
+                                ),
+                                strokeWidth = 1.2.dp.toPx()
+                            )
+                        }
+                    } else this
+                },
+            content = content
+        )
+    }
 }
 
 /**
@@ -124,7 +131,13 @@ fun Modifier.glass(
         GlassVariant.SHEET -> Triple(GlassTokens.BlurRadiusElevated, GlassTokens.TintSheet, 0.12f)
         GlassVariant.SUBTLE -> Triple(GlassTokens.BlurRadiusSubtle, GlassTokens.TintPrimary, 0.05f)
     }
-    val hazeStyle = HazeStyle(blurRadius = blurRadius, tint = HazeTint(tintC), noiseFactor = noiseFactor)
+    val hazeStyle = HazeStyle(
+        backgroundColor = GlassTokens.BackgroundColor,
+        blurRadius = blurRadius,
+        tint = HazeTint(tintC),
+        noiseFactor = noiseFactor,
+        fallbackTint = GlassTokens.FallbackTint
+    )
     return if (GlassTokens.supportsBlur && hazeState != null) {
         this.clip(shape).hazeEffect(state = hazeState, style = hazeStyle)
     } else {

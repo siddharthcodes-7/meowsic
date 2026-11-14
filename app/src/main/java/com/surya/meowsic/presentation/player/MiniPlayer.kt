@@ -1,6 +1,7 @@
 package com.surya.meowsic.presentation.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,8 +51,6 @@ fun MiniPlayer(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isResolving by viewModel.isResolving.collectAsState()
     val isBuffering by viewModel.isBuffering.collectAsState()
-    val position by viewModel.playbackPosition.collectAsState()
-    val duration by viewModel.duration.collectAsState()
     val palette = LocalAmbientPalette.current
     val libraryViewModel: LibraryViewModel = viewModel()
 
@@ -146,10 +146,16 @@ fun MiniPlayer(
 
                         Spacer(modifier = Modifier.width(4.dp))
 
-                        // Heart / Like button
+                        // Heart / Like button (animated)
+                        val heartScale by animateFloatAsState(
+                            targetValue = if (isLiked) 1.25f else 1.0f,
+                            animationSpec = LiquidGlassTokens.TactileSpringSpecFloat,
+                            label = "MiniPlayerHeartScale"
+                        )
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
+                                .graphicsLayer { scaleX = heartScale; scaleY = heartScale }
                                 .clickable(
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() },
@@ -229,32 +235,43 @@ fun MiniPlayer(
                         Spacer(modifier = Modifier.width(4.dp))
                     }
 
-                    // Progress bar — palette gradient fill
-                    val progress = if (duration > 0) {
-                        (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-                    } else {
-                        0f
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .background(Color(0x1AFFFFFF))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(progress)
-                                .fillMaxHeight()
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(palette.primary, palette.secondary)
-                                    )
-                                )
-                        )
-                    }
+                    // Isolated progress bar: only this leaf recomposes on progress ticks
+                    MiniPlayerProgressBar(viewModel = viewModel, palette = palette)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MiniPlayerProgressBar(
+    viewModel: SearchViewModel,
+    palette: LiquidGlassTokens.AmbientPalette
+) {
+    val position by viewModel.playbackPosition.collectAsState()
+    val duration by viewModel.duration.collectAsState()
+
+    val progress = if (duration > 0) {
+        (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(2.dp)
+            .background(Color(0x1AFFFFFF))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(progress)
+                .fillMaxHeight()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(palette.primary, palette.secondary)
+                    )
+                )
+        )
     }
 }

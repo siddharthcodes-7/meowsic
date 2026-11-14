@@ -20,7 +20,7 @@ private val LiquidGlassColorScheme = darkColorScheme(
     onBackground = LiquidGlassTokens.TextPrimary,
     surface = LiquidGlassTokens.SurfaceOledFallback,
     onSurface = LiquidGlassTokens.TextPrimary,
-    surfaceVariant = Obsidian.SurfaceElevated,
+    surfaceVariant = LiquidGlassTokens.SurfaceElevated,
     onSurfaceVariant = LiquidGlassTokens.TextSecondary,
     error = LiquidGlassTokens.Crimson,
     onError = LiquidGlassTokens.AmoledVoid
@@ -35,17 +35,17 @@ fun MeowsicTheme(
 
     val primary by animateColorAsState(
         targetValue = targetPalette.primary,
-        animationSpec = tween(durationMillis = Obsidian.DurationAmbient),
+        animationSpec = tween(durationMillis = LiquidGlassTokens.DurationAmbient),
         label = "AmbientPrimary"
     )
     val secondary by animateColorAsState(
         targetValue = targetPalette.secondary,
-        animationSpec = tween(durationMillis = Obsidian.DurationAmbient),
+        animationSpec = tween(durationMillis = LiquidGlassTokens.DurationAmbient),
         label = "AmbientSecondary"
     )
     val tertiary by animateColorAsState(
         targetValue = targetPalette.tertiary,
-        animationSpec = tween(durationMillis = Obsidian.DurationAmbient),
+        animationSpec = tween(durationMillis = LiquidGlassTokens.DurationAmbient),
         label = "AmbientTertiary"
     )
 

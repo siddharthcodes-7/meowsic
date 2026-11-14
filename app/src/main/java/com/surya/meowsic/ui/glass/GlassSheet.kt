@@ -41,64 +41,51 @@ fun GlassSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    hazeState: HazeState? = LocalHazeState.current,
     content: @Composable BoxScope.() -> Unit
 ) {
     val cornerShape = RoundedCornerShape(topStart = GlassTokens.CornerSheet, topEnd = GlassTokens.CornerSheet)
-    val hazeStyle = remember {
-        HazeStyle(
-            blurRadius = GlassTokens.BlurRadiusElevated,
-            tint = HazeTint(GlassTokens.TintSheet),
-            noiseFactor = 0.12f
-        )
-    }
 
-    val blurModifier = if (GlassTokens.supportsBlur && hazeState != null) {
-        Modifier.hazeEffect(state = hazeState, style = hazeStyle)
-    } else {
-        Modifier.background(GlassTokens.FallbackSurface)
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        sheetState = sheetState,
-        containerColor = Color.Transparent,
-        scrimColor = Color.Black.copy(alpha = 0.72f),
-        dragHandle = {
+    WithoutHaze {
+        ModalBottomSheet(
+            onDismissRequest = onDismissRequest,
+            sheetState = sheetState,
+            containerColor = Color.Transparent,
+            scrimColor = Color.Black.copy(alpha = 0.72f),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(42.dp)
+                            .height(4.dp)
+                            .clip(CircleShape)
+                            .background(LiquidGlassTokens.DragHandleColor)
+                    )
+                }
+            },
+            shape = cornerShape,
+            modifier = modifier
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(42.dp)
-                        .height(4.dp)
-                        .clip(CircleShape)
-                        .background(LiquidGlassTokens.DragHandleColor)
-                )
-            }
-        },
-        shape = cornerShape,
-        modifier = modifier
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(blurModifier)
-                .background(Color(0xFF050508))
-                .background(LiquidGlassTokens.SurfaceGlassPrimary)
-                .drawWithContent {
-                    drawContent()
-                    drawLine(
-                        color = LiquidGlassTokens.SpecularBevelHighlight,
-                        start = Offset(x = GlassTokens.CornerSheet.toPx(), y = 1.dp.toPx()),
-                        end = Offset(x = size.width - GlassTokens.CornerSheet.toPx(), y = 1.dp.toPx()),
-                        strokeWidth = 1.5.dp.toPx()
-                    )
-                },
-            content = content
-        )
+                    .background(Color(0xFF0F0F16))
+                    .background(LiquidGlassTokens.SurfaceGlassPrimary)
+                    .drawWithContent {
+                        drawContent()
+                        drawLine(
+                            color = LiquidGlassTokens.SpecularBevelHighlight,
+                            start = Offset(x = GlassTokens.CornerSheet.toPx(), y = 1.dp.toPx()),
+                            end = Offset(x = size.width - GlassTokens.CornerSheet.toPx(), y = 1.dp.toPx()),
+                            strokeWidth = 1.5.dp.toPx()
+                        )
+                    },
+                content = content
+            )
+        }
     }
 }

@@ -42,7 +42,9 @@ import com.surya.meowsic.presentation.library.LibraryViewModel
 import com.surya.meowsic.presentation.search.RepeatMode
 import com.surya.meowsic.presentation.search.SearchViewModel
 import com.surya.meowsic.ui.glass.AmbientBackground
+import com.surya.meowsic.ui.glass.GlassIconButton
 import com.surya.meowsic.ui.glass.GlassProminentButton
+import com.surya.meowsic.ui.glass.GlassSlider
 import com.surya.meowsic.ui.glass.GlassSurface
 import com.surya.meowsic.ui.glass.GlassVariant
 import com.surya.meowsic.ui.theme.LiquidGlassTokens
@@ -59,8 +61,6 @@ fun FullScreenPlayer(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isResolving by viewModel.isResolving.collectAsState()
     val isBuffering by viewModel.isBuffering.collectAsState()
-    val position by viewModel.playbackPosition.collectAsState()
-    val duration by viewModel.duration.collectAsState()
     val repeatMode by viewModel.repeatMode.collectAsState()
     val isShuffle by viewModel.isShuffle.collectAsState()
     val queue by viewModel.queue.collectAsState()
@@ -116,12 +116,12 @@ fun FullScreenPlayer(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = onDismiss) {
+                GlassIconButton(onClick = onDismiss, size = 44.dp) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = "Collapse Player",
                         tint = LiquidGlassTokens.TextPrimary,
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
 
@@ -143,12 +143,12 @@ fun FullScreenPlayer(
                     )
                 }
 
-                IconButton(onClick = { isQueueOpen = true }) {
+                GlassIconButton(onClick = { isQueueOpen = true }, size = 44.dp) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                         contentDescription = "Open Queue",
                         tint = if (isQueueOpen) palette.primary else LiquidGlassTokens.TextPrimary,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -268,11 +268,9 @@ fun FullScreenPlayer(
             Spacer(modifier = Modifier.height(16.dp))
 
             // ── 4. SEEK BAR (GlassSlider) ──
-            LiquidScrubber(
-                positionMs = position,
-                durationMs = duration.coerceAtLeast(0L),
-                palette = palette,
-                onSeek = { seekPos -> viewModel.seekTo(seekPos) }
+            FullScreenProgressSection(
+                viewModel = viewModel,
+                palette = palette
             )
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -385,111 +383,20 @@ fun FullScreenPlayer(
     }
 }
 
-// ── LiquidScrubber (kept for compatibility — identical to GlassSlider) ──
 @Composable
-fun LiquidScrubber(
-    positionMs: Long,
-    durationMs: Long,
-    palette: LiquidGlassTokens.AmbientPalette,
-    onSeek: (Long) -> Unit,
-    modifier: Modifier = Modifier
+private fun FullScreenProgressSection(
+    viewModel: SearchViewModel,
+    palette: LiquidGlassTokens.AmbientPalette
 ) {
-    var isDragging by remember { mutableStateOf(false) }
-    var dragProgress by remember { mutableFloatStateOf(0f) }
-    var barWidthPx by remember { mutableFloatStateOf(1f) }
+    val position by viewModel.playbackPosition.collectAsState()
+    val duration by viewModel.duration.collectAsState()
 
-    val effectiveProgress = if (isDragging) {
-        dragProgress
-    } else if (durationMs > 0) {
-        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-    } else { 0f }
-
-    val trackHeight by animateDpAsState(
-        targetValue = if (isDragging) 10.dp else 6.dp,
-        animationSpec = LiquidGlassTokens.TactileSpringSpecDp,
-        label = "ScrubberHeight"
+    GlassSlider(
+        positionMs = position,
+        durationMs = duration.coerceAtLeast(0L),
+        palette = palette,
+        onSeek = { seekPos -> viewModel.seekTo(seekPos) }
     )
-    val thumbRadius by animateDpAsState(
-        targetValue = if (isDragging) 9.dp else 0.dp,
-        animationSpec = LiquidGlassTokens.TactileSpringSpecDp,
-        label = "ThumbRadius"
-    )
-    val currentDisplayMs = if (isDragging && durationMs > 0) {
-        (dragProgress * durationMs).toLong()
-    } else { positionMs }
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(28.dp)
-                .onSizeChanged { barWidthPx = it.width.toFloat().coerceAtLeast(1f) }
-                .pointerInput(durationMs) {
-                    detectTapGestures { offset ->
-                        if (durationMs > 0) {
-                            onSeek(((offset.x / barWidthPx).coerceIn(0f, 1f) * durationMs).toLong())
-                        }
-                    }
-                }
-                .pointerInput(durationMs) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { offset ->
-                            isDragging = true
-                            dragProgress = (offset.x / barWidthPx).coerceIn(0f, 1f)
-                        },
-                        onDragEnd = {
-                            if (durationMs > 0) onSeek((dragProgress * durationMs).toLong())
-                            isDragging = false
-                        },
-                        onDragCancel = { isDragging = false },
-                        onHorizontalDrag = { change, _ ->
-                            change.consume()
-                            dragProgress = (change.position.x / barWidthPx).coerceIn(0f, 1f)
-                        }
-                    )
-                },
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Canvas(modifier = Modifier.fillMaxWidth().height(trackHeight)) {
-                val cornerRadius = CornerRadius(size.height / 2f, size.height / 2f)
-
-                drawRoundRect(color = Color(0x1FFFFFFF), size = size, cornerRadius = cornerRadius)
-
-                val fillWidth = size.width * effectiveProgress
-                if (fillWidth > 0f) {
-                    drawRoundRect(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(palette.primary, palette.secondary),
-                            startX = 0f, endX = size.width
-                        ),
-                        size = Size(fillWidth, size.height),
-                        cornerRadius = cornerRadius
-                    )
-                    if (thumbRadius.toPx() > 0f) {
-                        drawCircle(
-                            color = Color.White,
-                            radius = thumbRadius.toPx(),
-                            center = Offset(fillWidth, size.height / 2f)
-                        )
-                        drawCircle(
-                            color = palette.primary,
-                            radius = thumbRadius.toPx() + 2.dp.toPx(),
-                            center = Offset(fillWidth, size.height / 2f),
-                            alpha = 0.5f
-                        )
-                    }
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = formatTime(currentDisplayMs), color = LiquidGlassTokens.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-            Text(text = formatTime(durationMs), color = LiquidGlassTokens.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-        }
-    }
 }
 
 // ── TactileIconButton ──

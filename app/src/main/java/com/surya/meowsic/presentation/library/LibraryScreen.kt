@@ -5,9 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -28,6 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.surya.meowsic.data.local.model.PlaylistWithCount
 import com.surya.meowsic.presentation.search.SearchViewModel
+import com.surya.meowsic.ui.glass.GlassIconButton
 import com.surya.meowsic.ui.glass.GlassSurface
 import com.surya.meowsic.ui.glass.GlassVariant
 import com.surya.meowsic.ui.theme.LiquidGlassTokens
@@ -103,12 +102,12 @@ fun LibraryScreen(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = LiquidGlassTokens.HeaderLetterSpacing
                     )
-                    IconButton(onClick = { showCreateDialog = true }) {
+                    GlassIconButton(onClick = { showCreateDialog = true }, size = 40.dp) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "New Playlist",
                             tint = LiquidGlassTokens.TextPrimary,
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -128,7 +127,8 @@ fun LibraryScreen(
                             indication = null
                         ) { showLikedSongs = true },
                     variant = GlassVariant.ELEVATED,
-                    shape = RoundedCornerShape(18.dp)
+                    shape = RoundedCornerShape(18.dp),
+                    enableBlur = false
                 ) {
                     Box(
                         modifier = Modifier
@@ -229,34 +229,33 @@ fun LibraryScreen(
                     }
                 }
             } else {
-                // We use a fixed-height LazyVerticalGrid embedded in a LazyColumn item
-                // by calculating the height based on the number of rows
-                val rows = (playlists.size + 1) / 2
-                val itemHeight = 200.dp
-                val gridHeight = itemHeight * rows + 8.dp * (rows - 1).coerceAtLeast(0)
-                item {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
+                items(
+                    items = playlists.chunked(2),
+                    key = { row -> row.first().playlist.id }
+                ) { rowItems ->
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(gridHeight)
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        userScrollEnabled = false
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(playlists, key = { it.playlist.id }) { pwc ->
-                            PlaylistCard(
-                                pwc = pwc,
-                                thumbnailUrls = thumbnails[pwc.playlist.id] ?: emptyList(),
-                                onClick = { openPlaylistId = pwc.playlist.id },
-                                onRename = { newName -> libraryViewModel.renamePlaylist(pwc.playlist.id, newName) },
-                                onChangeCover = { /* handled via dialog */ },
-                                onRemoveCover = { libraryViewModel.updatePlaylistCover(pwc.playlist.id, null) },
-                                onDelete = {
-                                    libraryViewModel.deletePlaylist(pwc.playlist.id, context)
-                                }
-                            )
+                        rowItems.forEach { pwc ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                PlaylistCard(
+                                    pwc = pwc,
+                                    thumbnailUrls = thumbnails[pwc.playlist.id] ?: emptyList(),
+                                    onClick = { openPlaylistId = pwc.playlist.id },
+                                    onRename = { newName -> libraryViewModel.renamePlaylist(pwc.playlist.id, newName) },
+                                    onChangeCover = { /* handled via dialog */ },
+                                    onRemoveCover = { libraryViewModel.updatePlaylistCover(pwc.playlist.id, null) },
+                                    onDelete = {
+                                        libraryViewModel.deletePlaylist(pwc.playlist.id, context)
+                                    }
+                                )
+                            }
+                        }
+                        if (rowItems.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -300,7 +299,8 @@ private fun PlaylistCard(
                 onClick = onClick
             ),
         variant = GlassVariant.PRIMARY,
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        enableBlur = false
     ) {
         Column {
             // Cover area — 1:1 square

@@ -21,7 +21,7 @@ import com.surya.meowsic.ui.theme.LiquidGlassTokens
 
 @Composable
 fun HomeScreen() {
-    // No opaque background — root AmbientLightOrbs shine through
+    // No opaque background — root AmbientBackground shines through
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -69,7 +69,8 @@ fun HomeScreen() {
                         .height(140.dp)
                         .padding(horizontal = 20.dp),
                     variant = GlassVariant.ELEVATED,
-                    shape = RoundedCornerShape(22.dp)
+                    shape = RoundedCornerShape(22.dp),
+                    enableBlur = false
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -104,7 +105,8 @@ fun HomeScreen() {
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp),
                     variant = GlassVariant.PRIMARY,
-                    shape = RoundedCornerShape(18.dp)
+                    shape = RoundedCornerShape(18.dp),
+                    enableBlur = false
                 ) {
                     Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
                         Text(
@@ -128,7 +130,8 @@ fun HomeScreen() {
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp),
                     variant = GlassVariant.PRIMARY,
-                    shape = RoundedCornerShape(18.dp)
+                    shape = RoundedCornerShape(18.dp),
+                    enableBlur = false
                 ) {
                     Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
                         Text(

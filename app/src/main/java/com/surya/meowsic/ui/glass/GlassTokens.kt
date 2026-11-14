@@ -6,12 +6,16 @@ import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeTint
 
 /**
  * Glass design system tokens.
  * Extends LiquidGlassTokens with blur-specific constants and tier resolution.
  */
 object GlassTokens {
+
+    val BackgroundColor: Color = Color(0xFF0A0A0F)
+    const val NoiseFactor: Float = 0.04f
 
     // ── Blur radii ──────────────────────────────────────────────────────────
     /** Blur radius for primary chrome (tab bar, mini player) */
@@ -38,7 +42,7 @@ object GlassTokens {
     val FallbackSurface: Color = Color(0xFF0D0D11)
 
     /** Tier C fallback tint on top of opaque surface */
-    val FallbackTint: Color = Color(0x33FFFFFF)  // 20% white — more visible without blur
+    val FallbackTint: HazeTint = HazeTint(Color(0x33FFFFFF))
 
     // ── Corner radii ────────────────────────────────────────────────────────
     val CornerTabBar: Dp = 32.dp

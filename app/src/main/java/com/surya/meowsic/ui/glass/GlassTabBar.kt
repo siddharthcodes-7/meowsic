@@ -69,9 +69,11 @@ fun GlassTabBar(
     val shape = RoundedCornerShape(GlassTokens.CornerTabBar)
     val hazeStyle = remember {
         HazeStyle(
+            backgroundColor = GlassTokens.BackgroundColor,
             blurRadius = GlassTokens.BlurRadiusElevated,
             tint = HazeTint(GlassTokens.TintPrimary),
-            noiseFactor = 0.08f
+            noiseFactor = 0.08f,
+            fallbackTint = GlassTokens.FallbackTint
         )
     }
 

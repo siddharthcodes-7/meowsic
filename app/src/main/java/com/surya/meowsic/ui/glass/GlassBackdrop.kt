@@ -35,6 +35,20 @@ fun GlassBackdropHost(
 }
 
 /**
+ * Strips LocalHazeState inside Dialogs, ModalBottomSheets, or hazeSource subtrees
+ * so descendants never attach a recursive or cross-window Modifier.hazeEffect.
+ */
+@Composable
+fun WithoutHaze(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalHazeState provides null) {
+        content()
+    }
+}
+
+fun Modifier.glassBackdrop(hazeState: HazeState): Modifier =
+    this.hazeSource(state = hazeState)
+
+/**
  * Convenience Modifier extension: marks a composable as the backdrop source.
  * Equivalent to `Modifier.haze(hazeState)` but reads from [LocalHazeState].
  */

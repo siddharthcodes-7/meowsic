@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import com.surya.meowsic.ui.glass.GlassButton
 import com.surya.meowsic.ui.glass.GlassSurface
 import com.surya.meowsic.ui.glass.GlassVariant
+import com.surya.meowsic.ui.glass.WithoutHaze
 import com.surya.meowsic.ui.theme.LiquidGlassTokens
 import java.io.File
 import java.io.FileOutputStream
@@ -73,13 +74,16 @@ fun CreatePlaylistDialog(
     }
 
     Dialog(onDismissRequest = onDismiss) {
-        GlassSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight(),
-            variant = GlassVariant.ELEVATED,
-            shape = RoundedCornerShape(24.dp)
-        ) {
+        WithoutHaze {
+            GlassSurface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                variant = GlassVariant.ELEVATED,
+                shape = RoundedCornerShape(24.dp),
+                hazeState = null,
+                enableBlur = false
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -217,4 +221,5 @@ fun CreatePlaylistDialog(
             }
         }
     }
+}
 }

@@ -32,6 +32,12 @@ class PlaylistDetailViewModel(
         }
     }
 
+    fun addSong(song: Song) {
+        viewModelScope.launch {
+            repo.addSongToPlaylist(playlistId, song)
+        }
+    }
+
     fun reorderSongs(songIdsInOrder: List<String>) {
         viewModelScope.launch {
             repo.reorderPlaylistSongs(playlistId, songIdsInOrder)
