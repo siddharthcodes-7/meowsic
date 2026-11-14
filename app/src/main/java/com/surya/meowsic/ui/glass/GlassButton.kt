@@ -29,7 +29,7 @@ import com.surya.meowsic.ui.theme.LocalAmbientPalette
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeEffectgit
 
 /**
  * Glass icon button — small, circular, glass-tinted.
