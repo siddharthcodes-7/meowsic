@@ -9,29 +9,31 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.surya.meowsic.data.stream.YouTubeStreamResolver
 import com.surya.meowsic.presentation.home.HomeScreen
+import com.surya.meowsic.presentation.library.LibraryScreen
 import com.surya.meowsic.presentation.player.FullScreenPlayer
 import com.surya.meowsic.presentation.player.MiniPlayer
 import com.surya.meowsic.presentation.search.SearchScreen
 import com.surya.meowsic.presentation.search.SearchViewModel
+import com.surya.meowsic.ui.glass.AmbientBackground
+import com.surya.meowsic.ui.glass.GlassBackdropHost
+import com.surya.meowsic.ui.glass.GlassTabBar
+import com.surya.meowsic.ui.glass.GlassTabItem
 import com.surya.meowsic.ui.theme.LiquidGlassTokens
+import com.surya.meowsic.ui.theme.LocalAmbientPalette
 import com.surya.meowsic.ui.theme.MeowsicTheme
+import dev.chrisbanes.haze.hazeSource
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,8 +44,12 @@ class MainActivity : ComponentActivity() {
         YouTubeStreamResolver.initialize()
 
         setContent {
-            MeowsicTheme {
-                MeoMusicApp()
+            val searchViewModel: SearchViewModel = viewModel()
+            val currentSong by searchViewModel.currentSong.collectAsState()
+
+            // Pass current song ID so MeowsicTheme can animate the ambient palette
+            MeowsicTheme(currentSongId = currentSong?.id) {
+                MeoMusicApp(searchViewModel = searchViewModel)
             }
         }
     }
@@ -53,143 +59,97 @@ class MainActivity : ComponentActivity() {
 fun MeoMusicApp(
     searchViewModel: SearchViewModel = viewModel()
 ) {
-    var selectedTab by remember { mutableIntStateOf(1) } // Default to Search tab
+    var selectedTab by remember { mutableIntStateOf(0) }
     val isFullScreenPlayerOpen by searchViewModel.isFullScreenOpen.collectAsState()
     val currentSong by searchViewModel.currentSong.collectAsState()
+    val palette = LocalAmbientPalette.current
 
-    // Handle back button to collapse full-screen player when visible
     BackHandler(enabled = isFullScreenPlayerOpen) {
         searchViewModel.closeFullScreen()
     }
 
-    // 1. True Void Canvas: Pure #000000 global root background
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(LiquidGlassTokens.AmoledVoid)
-    ) {
-        Scaffold(
-            containerColor = LiquidGlassTokens.AmoledVoid,
-            bottomBar = {
+    val tabItems = listOf(
+        GlassTabItem("Home", Icons.Default.Home, 0),
+        GlassTabItem("Search", Icons.Default.Search, 1),
+        GlassTabItem("Library", Icons.Default.LibraryMusic, 2)
+    )
+
+    GlassBackdropHost { hazeState ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(LiquidGlassTokens.AmoledVoid)
+        ) {
+            // ── Layer 1: Animated ambient light background (behind everything) ──
+            AmbientBackground(
+                palette = palette,
+                modifier = Modifier.fillMaxSize(),
+                opacity = 0.30f
+            )
+
+            // ── Layer 2: Content that acts as the haze backdrop source ──
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeSource(hazeState)
+                    .navigationBarsPadding()
+            ) {
+                // Screen content — fills the full available area including behind bottom bars
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 160.dp) // Reserve space so last list item scrolls above nav
+                ) {
+                    when (selectedTab) {
+                        0 -> HomeScreen()
+                        1 -> SearchScreen(viewModel = searchViewModel)
+                        2 -> LibraryScreen()
+                    }
+                }
+
+                // ── Layer 3: Floating bottom chrome (MiniPlayer + GlassTabBar) ──
                 Column(
                     modifier = Modifier
+                        .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .navigationBarsPadding()
                 ) {
-                    // Floating Mini-Player
+                    // Floating MiniPlayer (acts as tabViewBottomAccessory)
                     MiniPlayer(
                         viewModel = searchViewModel,
                         onOpenFullScreen = { searchViewModel.openFullScreen() }
                     )
 
-                    // Floating Liquid Glass Navigation Bar
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(LiquidGlassTokens.SurfaceGlassElevated)
-                            .border(
-                                width = 1.dp,
-                                brush = LiquidGlassTokens.SpecularRimGradient,
-                                shape = RoundedCornerShape(24.dp)
-                            )
-                    ) {
-                        NavigationBar(
-                            containerColor = Color.Transparent,
-                            tonalElevation = 0.dp,
-                            modifier = Modifier.height(64.dp)
-                        ) {
-                            val items = listOf("Home", "Search", "Library", "Profile")
-                            val icons = listOf(
-                                Icons.Default.Home,
-                                Icons.Default.Search,
-                                Icons.Default.LibraryMusic,
-                                Icons.Default.Person
-                            )
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                            items.forEachIndexed { index, title ->
-                                val isSelected = selectedTab == index
-                                NavigationBarItem(
-                                    selected = isSelected,
-                                    onClick = { selectedTab = index },
-                                    icon = {
-                                        Icon(
-                                            icons[index],
-                                            contentDescription = title,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = title,
-                                            fontSize = 11.sp,
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = LiquidGlassTokens.ElectricLime,
-                                        selectedTextColor = LiquidGlassTokens.ElectricLime,
-                                        indicatorColor = LiquidGlassTokens.SurfaceGlassActive,
-                                        unselectedIconColor = LiquidGlassTokens.TextMuted,
-                                        unselectedTextColor = LiquidGlassTokens.TextMuted
-                                    )
-                                )
-                            }
-                        }
-                    }
+                    // Floating Glass Tab Bar
+                    GlassTabBar(
+                        items = tabItems,
+                        selectedIndex = selectedTab,
+                        onTabSelected = { selectedTab = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        palette = palette
+                    )
                 }
             }
-        ) { padding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+
+            // ── Layer 4: Full-screen player modal ──
+            AnimatedVisibility(
+                visible = isFullScreenPlayerOpen && currentSong != null,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = LiquidGlassTokens.SlideSpringSpec
+                ),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = LiquidGlassTokens.SlideSpringSpec
+                ),
+                modifier = Modifier.fillMaxSize()
             ) {
-                when (selectedTab) {
-                    0 -> HomeScreen()
-                    1 -> SearchScreen(viewModel = searchViewModel)
-                    2 -> SimpleScreen("Your Library")
-                    3 -> SimpleScreen("Profile")
-                }
+                FullScreenPlayer(
+                    viewModel = searchViewModel,
+                    onDismiss = { searchViewModel.closeFullScreen() }
+                )
             }
         }
-
-        // Full-screen AMOLED Liquid Glass music player
-        AnimatedVisibility(
-            visible = isFullScreenPlayerOpen && currentSong != null,
-            enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = LiquidGlassTokens.SlideSpringSpec
-            ),
-            exit = slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = LiquidGlassTokens.SlideSpringSpec
-            ),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            FullScreenPlayer(
-                viewModel = searchViewModel,
-                onDismiss = { searchViewModel.closeFullScreen() }
-            )
-        }
-    }
-}
-
-@Composable
-fun SimpleScreen(title: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(LiquidGlassTokens.AmoledVoid),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = title,
-            color = LiquidGlassTokens.TextPrimary,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = LiquidGlassTokens.HeaderLetterSpacing
-        )
     }
 }

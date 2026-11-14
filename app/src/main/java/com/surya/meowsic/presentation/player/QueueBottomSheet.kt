@@ -2,16 +2,17 @@ package com.surya.meowsic.presentation.player
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,7 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.surya.meowsic.domain.Song
-import com.surya.meowsic.ui.components.LiquidGlassCard
+import com.surya.meowsic.ui.glass.GlassSheet
+import com.surya.meowsic.ui.glass.GlassSurface
+import com.surya.meowsic.ui.glass.GlassVariant
 import com.surya.meowsic.ui.theme.LiquidGlassTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,23 +38,7 @@ fun QueueBottomSheet(
     onSongClick: (Song) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = LiquidGlassTokens.AmoledVoid,
-        scrimColor = Color.Black.copy(alpha = 0.70f),
-        dragHandle = {
-            // Pill-shaped drag handle: rgba(255, 255, 255, 0.3)
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(42.dp)
-                    .height(4.5.dp)
-                    .clip(CircleShape)
-                    .background(LiquidGlassTokens.DragHandleColor)
-            )
-        },
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    ) {
+    GlassSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -73,7 +60,6 @@ fun QueueBottomSheet(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = LiquidGlassTokens.HeaderLetterSpacing
                 )
-
                 Text(
                     text = "${queue.size} Tracks",
                     color = LiquidGlassTokens.TextMuted,
@@ -84,9 +70,7 @@ fun QueueBottomSheet(
 
             if (queue.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp),
+                    modifier = Modifier.fillMaxWidth().height(180.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -97,85 +81,106 @@ fun QueueBottomSheet(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 420.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     itemsIndexed(queue, key = { index, song -> "${song.id}_$index" }) { index, song ->
                         val isCurrent = index == currentIndex
 
-                        LiquidGlassCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSongClick(song) },
-                            shape = RoundedCornerShape(16.dp),
-                            isElevated = isCurrent
-                        ) {
-                            Row(
+                        if (isCurrent) {
+                            GlassSurface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .clickable { onSongClick(song) },
+                                variant = GlassVariant.ELEVATED,
+                                shape = RoundedCornerShape(16.dp)
                             ) {
-                                // Thumbnail
-                                Box(
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFF181818)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (song.thumbnailUrl.isNotBlank()) {
-                                        AsyncImage(
-                                            model = song.thumbnailUrl,
-                                            contentDescription = song.title,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.MusicNote,
-                                            contentDescription = null,
-                                            tint = LiquidGlassTokens.TextMuted
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                // Song metadata
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = song.title,
-                                        color = if (isCurrent) palette.primary else LiquidGlassTokens.TextPrimary,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                QueueSongRow(song = song, isCurrent = true, palette = palette, onSongClick = onSongClick)
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = { onSongClick(song) }
                                     )
-                                    Text(
-                                        text = song.artist,
-                                        color = LiquidGlassTokens.TextSecondary,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-
-                                if (isCurrent) {
-                                    Icon(
-                                        imageVector = Icons.Default.Equalizer,
-                                        contentDescription = "Currently Playing",
-                                        tint = palette.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                            ) {
+                                QueueSongRow(song = song, isCurrent = false, palette = palette, onSongClick = onSongClick)
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun QueueSongRow(
+    song: Song,
+    isCurrent: Boolean,
+    palette: LiquidGlassTokens.AmbientPalette,
+    onSongClick: (Song) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF181818)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (song.thumbnailUrl.isNotBlank()) {
+                AsyncImage(
+                    model = song.thumbnailUrl,
+                    contentDescription = song.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = LiquidGlassTokens.TextMuted
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = song.title,
+                color = if (isCurrent) palette.primary else LiquidGlassTokens.TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = song.artist,
+                color = LiquidGlassTokens.TextSecondary,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        if (isCurrent) {
+            Icon(
+                imageVector = Icons.Default.Equalizer,
+                contentDescription = "Currently Playing",
+                tint = palette.primary,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

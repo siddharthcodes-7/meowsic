@@ -4,15 +4,16 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -23,22 +24,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.surya.meowsic.domain.Song
-import com.surya.meowsic.ui.components.LiquidGlassCard
+import com.surya.meowsic.ui.glass.GlassSurface
+import com.surya.meowsic.ui.glass.GlassVariant
 import com.surya.meowsic.ui.theme.LiquidGlassTokens
+import com.surya.meowsic.ui.theme.LocalAmbientPalette
 import kotlinx.coroutines.delay
 
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel
 ) {
-    // Local mutable state for the text field — allows instant UI updates while debouncing search
     var searchQuery by remember { mutableStateOf("") }
 
     val searchResults by viewModel.searchResults.collectAsState()
@@ -47,95 +51,109 @@ fun SearchScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val palette = LocalAmbientPalette.current
 
-    // 500ms debounce: search fires 500ms after the user stops typing
+    // 500ms debounce
     LaunchedEffect(searchQuery) {
         if (searchQuery.length >= 2) {
             delay(500L)
             viewModel.searchYouTube(searchQuery)
         } else {
-            viewModel.searchYouTube(searchQuery) // clears results for short queries
+            viewModel.searchYouTube(searchQuery)
         }
     }
 
+    // No opaque background — root AmbientLightOrbs shine through
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(LiquidGlassTokens.AmoledVoid)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .statusBarsPadding()
     ) {
-        // --------------------------------
-        // TITLE HEADER
-        // --------------------------------
+        // ── Title ──
         Text(
             text = "Search",
             color = LiquidGlassTokens.TextPrimary,
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = LiquidGlassTokens.HeaderLetterSpacing,
-            modifier = Modifier.padding(bottom = 14.dp)
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
         )
 
-        // --------------------------------
-        // SEARCH INPUT BAR (LIQUID GLASS STYLED)
-        // --------------------------------
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { newValue ->
-                searchQuery = newValue
-                viewModel.onSearchQueryChanged(newValue)
-            },
-            placeholder = {
-                Text(
-                    text = "Search songs, artists, channels...",
-                    color = LiquidGlassTokens.TextMuted,
-                    fontSize = 15.sp
-                )
-            },
-            leadingIcon = {
+        // ── GlassSurface search bar ──
+        GlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .height(52.dp),
+            variant = GlassVariant.SUBTLE,
+            shape = RoundedCornerShape(28.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = if (searchQuery.isNotEmpty()) LiquidGlassTokens.ElectricLime else LiquidGlassTokens.TextMuted
+                    tint = if (searchQuery.isNotEmpty()) palette.primary else LiquidGlassTokens.TextMuted,
+                    modifier = Modifier.size(20.dp)
                 )
-            },
-            trailingIcon = {
+                Spacer(modifier = Modifier.width(10.dp))
+                Box(modifier = Modifier.weight(1f)) {
+                    if (searchQuery.isEmpty()) {
+                        Text(
+                            text = "Songs, artists, channels...",
+                            color = LiquidGlassTokens.TextMuted,
+                            fontSize = 15.sp
+                        )
+                    }
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { newValue ->
+                            searchQuery = newValue
+                            viewModel.onSearchQueryChanged(newValue)
+                        },
+                        textStyle = TextStyle(
+                            color = LiquidGlassTokens.TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Normal
+                        ),
+                        cursorBrush = SolidColor(LiquidGlassTokens.TextPrimary),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = {
-                        searchQuery = ""
-                        viewModel.onSearchQueryChanged("")
-                    }) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {
+                                    searchQuery = ""
+                                    viewModel.onSearchQueryChanged("")
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear search",
-                            tint = LiquidGlassTokens.TextSecondary
+                            contentDescription = "Clear",
+                            tint = LiquidGlassTokens.TextMuted,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 1.dp,
-                    brush = LiquidGlassTokens.SpecularRimGradient,
-                    shape = RoundedCornerShape(18.dp)
-                ),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = LiquidGlassTokens.SurfaceOledFallback,
-                unfocusedContainerColor = LiquidGlassTokens.SurfaceOledFallback,
-                focusedBorderColor = LiquidGlassTokens.ElectricLime,
-                unfocusedBorderColor = Color.Transparent,
-                focusedTextColor = LiquidGlassTokens.TextPrimary,
-                unfocusedTextColor = LiquidGlassTokens.TextPrimary,
-                cursorColor = LiquidGlassTokens.ElectricLime
-            ),
-            singleLine = true,
-            shape = RoundedCornerShape(18.dp)
-        )
+            }
+        }
 
-        // --------------------------------
-        // SEARCH LOADING INDICATOR
-        // --------------------------------
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // ── Loading indicator ──
         AnimatedVisibility(
             visible = isSearching,
             enter = fadeIn(animationSpec = LiquidGlassTokens.TactileSpringSpecFloat),
@@ -144,27 +162,26 @@ fun SearchScreen(
             LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp)
-                    .height(3.dp),
-                color = LiquidGlassTokens.ElectricLime,
+                    .padding(horizontal = 16.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(1.5.dp)),
+                color = palette.primary,
                 trackColor = Color(0x1FFFFFFF)
             )
         }
 
-        // --------------------------------
-        // RESOLVING / PREPARING BANNER
-        // --------------------------------
+        // ── Resolving banner — GlassSurface ──
         AnimatedVisibility(
             visible = isResolving && currentSong != null,
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            LiquidGlassCard(
+            GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(14.dp),
-                isElevated = true
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                variant = GlassVariant.ELEVATED,
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -172,13 +189,13 @@ fun SearchScreen(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
-                        color = LiquidGlassTokens.ElectricLime,
+                        color = palette.primary,
                         strokeWidth = 2.dp
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Extracting liquid audio for ${currentSong?.title}...",
-                        color = LiquidGlassTokens.ElectricLime,
+                        text = "Preparing ${currentSong?.title ?: ""}...",
+                        color = palette.primary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -188,14 +205,13 @@ fun SearchScreen(
             }
         }
 
-        // --------------------------------
-        // ERROR BANNER
-        // --------------------------------
+        // ── Error banner — GlassSurface ──
         errorMessage?.let { error ->
-            LiquidGlassCard(
+            GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                variant = GlassVariant.PRIMARY,
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
@@ -216,15 +232,12 @@ fun SearchScreen(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth().height(0.5.dp).background(Color(0x1AFFFFFF)))
 
-        // --------------------------------
-        // EMPTY STATE OR RESULTS LIST
-        // --------------------------------
+        // ── Empty state or results ──
         if (searchResults.isEmpty() && searchQuery.isBlank()) {
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -244,28 +257,21 @@ fun SearchScreen(
                 }
             }
         } else {
-            // Virtualized list conforming to GPU Rasterization Budget:
-            // Static glass borders/gradients without per-row runtime blur
             LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 8.dp)
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(bottom = 160.dp)
             ) {
-                items(
-                    items = searchResults,
-                    key = { song -> song.id }
-                ) { song ->
+                items(items = searchResults, key = { song -> song.id }) { song ->
                     val isCurrent = currentSong?.id == song.id
                     val isSongResolving = isCurrent && isResolving
                     val isSongPlaying = isCurrent && isPlaying
 
-                    SongResultItem(
+                    ObsidianSongItem(
                         song = song,
                         isCurrent = isCurrent,
                         isResolving = isSongResolving,
                         isPlaying = isSongPlaying,
+                        palette = palette,
                         onClick = {
                             if (isCurrent) {
                                 viewModel.togglePlayPause()
@@ -274,49 +280,62 @@ fun SearchScreen(
                             }
                         }
                     )
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .height(0.5.dp)
+                            .background(Color(0x1AFFFFFF))
+                    )
                 }
             }
         }
     }
 }
 
-// ================================================
-// SONG RESULT ITEM (PERFORMANCE OPTIMIZED LIQUID GLASS)
-// ================================================
-
 @Composable
-fun SongResultItem(
+private fun ObsidianSongItem(
     song: Song,
     isCurrent: Boolean = false,
     isResolving: Boolean = false,
     isPlaying: Boolean = false,
+    palette: LiquidGlassTokens.AmbientPalette,
     onClick: () -> Unit
 ) {
-    LiquidGlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        isElevated = isCurrent
-    ) {
+    if (isCurrent) {
+        // Wrap active/playing song in GlassSurface
+        GlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick
+                ),
+            variant = GlassVariant.ELEVATED,
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            SongItemContent(song = song, isCurrent = true, isResolving = isResolving, isPlaying = isPlaying, palette = palette)
+        }
+    } else {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick
+                )
+                .padding(horizontal = 24.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // THUMBNAIL
+            // Plain Box+AsyncImage replacing ObsidianSquareArtwork
             Box(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(LiquidGlassTokens.SurfaceOledFallback)
-                    .border(
-                        width = 1.dp,
-                        brush = LiquidGlassTokens.SpecularRimGradient,
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
+                    .background(Color(0xFF181818))
             ) {
                 AsyncImage(
                     model = song.thumbnailUrl,
@@ -324,42 +343,18 @@ fun SongResultItem(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-
-                if (isPlaying) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.5f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = "Playing",
-                            tint = LiquidGlassTokens.ElectricLime,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
             }
-
             Spacer(modifier = Modifier.width(12.dp))
-
-            // SONG DETAILS
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = song.title,
-                    color = if (isCurrent) LiquidGlassTokens.ElectricLime else LiquidGlassTokens.TextPrimary,
+                    color = LiquidGlassTokens.TextPrimary,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = LiquidGlassTokens.HeaderLetterSpacing,
+                    fontWeight = FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-
                 Spacer(modifier = Modifier.height(2.dp))
-
                 Text(
                     text = song.artist,
                     color = LiquidGlassTokens.TextSecondary,
@@ -368,37 +363,90 @@ fun SongResultItem(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // STATUS / ACTION BUTTON
-            if (isResolving) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = LiquidGlassTokens.ElectricLime,
-                    strokeWidth = 2.dp
+            // More icon button — placeholder for "Add to playlist"
+            IconButton(onClick = {}) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More",
+                    tint = LiquidGlassTokens.TextMuted,
+                    modifier = Modifier.size(20.dp)
                 )
-            } else if (isCurrent) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(LiquidGlassTokens.SurfaceGlassActive)
-                        .border(
-                            width = 1.dp,
-                            color = LiquidGlassTokens.ElectricLime.copy(alpha = 0.6f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = LiquidGlassTokens.ElectricLime,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
             }
+        }
+    }
+}
+
+@Composable
+private fun SongItemContent(
+    song: Song,
+    isCurrent: Boolean,
+    isResolving: Boolean,
+    isPlaying: Boolean,
+    palette: LiquidGlassTokens.AmbientPalette
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Plain Box+AsyncImage replacing ObsidianSquareArtwork
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF181818))
+        ) {
+            AsyncImage(
+                model = song.thumbnailUrl,
+                contentDescription = song.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = song.title,
+                color = palette.primary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = LiquidGlassTokens.HeaderLetterSpacing,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = song.artist,
+                color = LiquidGlassTokens.TextSecondary,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        if (isResolving) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = palette.primary,
+                strokeWidth = 2.dp
+            )
+        } else {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (isPlaying) "Pause" else "Play",
+                tint = palette.primary,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        // More icon button — placeholder for "Add to playlist"
+        IconButton(onClick = {}) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = "More",
+                tint = LiquidGlassTokens.TextMuted,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

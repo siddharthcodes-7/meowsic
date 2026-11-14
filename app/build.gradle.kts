@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -36,9 +37,16 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.25.2")
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Haze: real backdrop blur for Liquid Glass chrome (API 31+ blur, API 26-30 tinted fallback)
+    implementation("dev.chrisbanes.haze:haze:1.5.1")
 
     // ExoPlayer / Media3
     implementation("androidx.media3:media3-exoplayer:1.3.1")
@@ -47,6 +55,12 @@ dependencies {
 
     // ViewModel Compose Support
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+
+    // Room Database
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    testImplementation(libs.androidx.room.testing)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

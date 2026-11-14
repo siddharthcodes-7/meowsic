@@ -4,17 +4,14 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
@@ -30,20 +27,26 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.surya.meowsic.presentation.library.LibraryViewModel
 import com.surya.meowsic.presentation.search.RepeatMode
 import com.surya.meowsic.presentation.search.SearchViewModel
-import com.surya.meowsic.ui.components.AmbientLightOrbs
-import com.surya.meowsic.ui.components.LiquidGlassCard
-import com.surya.meowsic.ui.components.LiquidOrbButton
+import com.surya.meowsic.ui.glass.AmbientBackground
+import com.surya.meowsic.ui.glass.GlassProminentButton
+import com.surya.meowsic.ui.glass.GlassSurface
+import com.surya.meowsic.ui.glass.GlassVariant
 import com.surya.meowsic.ui.theme.LiquidGlassTokens
+import com.surya.meowsic.ui.theme.LocalAmbientPalette
 import java.util.Locale
 
 @Composable
@@ -64,17 +67,19 @@ fun FullScreenPlayer(
     val currentIndex by viewModel.currentIndex.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    var isFavorite by remember { mutableStateOf(false) }
     var isQueueOpen by remember { mutableStateOf(false) }
+    val libraryViewModel: LibraryViewModel = viewModel()
 
     val song = currentSong ?: return
 
-    // Dynamic ambient palette based on current song
     val palette = remember(song.id, song.title) {
         LiquidGlassTokens.getAmbientPaletteForSong(song.id + song.title)
     }
+    val globalPalette = LocalAmbientPalette.current
 
-    // Smooth Artwork Scale Animation: 1.0 when playing, 0.92 with dimmed opacity when paused
+    val isLiked by libraryViewModel.isLiked(song.id).collectAsState(initial = false)
+
+    // Artwork spring animation
     val artScale by animateFloatAsState(
         targetValue = if (isPlaying) 1.0f else 0.92f,
         animationSpec = LiquidGlassTokens.TactileSpringSpecFloat,
@@ -86,7 +91,6 @@ fun FullScreenPlayer(
         label = "ArtworkAlpha"
     )
 
-    // True AMOLED Void Canvas (#000000)
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -94,23 +98,17 @@ fun FullScreenPlayer(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        // Localized Ambient Light Emitters behind primary glass chrome
-        AmbientLightOrbs(
-            palette = palette,
-            opacity = 0.32f
-        )
+        // Animated ambient background (glass system)
+        AmbientBackground(palette = palette, modifier = Modifier.fillMaxSize(), opacity = 0.28f)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // ----------------------------------------------------
-            // 1. TOP HEADER BAR
-            // ----------------------------------------------------
+            // ── 1. TOP BAR ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -129,7 +127,7 @@ fun FullScreenPlayer(
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "PLAYING FROM QUEUE",
+                        text = "NOW PLAYING",
                         color = LiquidGlassTokens.TextMuted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -138,9 +136,7 @@ fun FullScreenPlayer(
                     Text(
                         text = if (queue.isNotEmpty() && currentIndex >= 0) {
                             "Track ${currentIndex + 1} of ${queue.size}"
-                        } else {
-                            "Meowsic"
-                        },
+                        } else { "Meowsic" },
                         color = LiquidGlassTokens.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
@@ -159,12 +155,10 @@ fun FullScreenPlayer(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ----------------------------------------------------
-            // 2. NOW PLAYING VIEW & ALBUM ART HALO
-            // ----------------------------------------------------
+            // ── 2. ARTWORK ──
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(0.84f)
                     .aspectRatio(1f)
                     .graphicsLayer {
                         scaleX = artScale
@@ -178,12 +172,7 @@ fun FullScreenPlayer(
                         spotColor = palette.secondary
                     )
                     .clip(RoundedCornerShape(24.dp))
-                    .background(LiquidGlassTokens.SurfaceOledFallback)
-                    .border(
-                        width = 1.dp,
-                        brush = LiquidGlassTokens.SpecularRimGradient,
-                        shape = RoundedCornerShape(24.dp)
-                    ),
+                    .background(LiquidGlassTokens.SurfaceOledFallback),
                 contentAlignment = Alignment.Center
             ) {
                 if (song.thumbnailUrl.isNotBlank()) {
@@ -202,17 +191,6 @@ fun FullScreenPlayer(
                     )
                 }
 
-                // Inner specular highlight bevel over artwork
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .border(
-                            width = 1.dp,
-                            color = LiquidGlassTokens.SpecularRimBorder,
-                            shape = RoundedCornerShape(24.dp)
-                        )
-                )
-
                 if (isResolving || isBuffering) {
                     Box(
                         modifier = Modifier
@@ -228,7 +206,7 @@ fun FullScreenPlayer(
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = if (isResolving) "Resolving liquid stream..." else "Buffering...",
+                                text = if (isResolving) "Resolving stream..." else "Buffering...",
                                 color = LiquidGlassTokens.TextPrimary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
@@ -240,9 +218,7 @@ fun FullScreenPlayer(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ----------------------------------------------------
-            // 3. SONG TITLE & ARTIST ROW
-            // ----------------------------------------------------
+            // ── 3. SONG TITLE & ARTIST + LIKE BUTTON ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -265,17 +241,25 @@ fun FullScreenPlayer(
                         text = song.artist,
                         color = LiquidGlassTokens.TextSecondary,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                IconButton(onClick = { isFavorite = !isFavorite }) {
+                // Animated heart button (real like, persisted)
+                val heartScale by animateFloatAsState(
+                    targetValue = if (isLiked) 1.15f else 1f,
+                    animationSpec = LiquidGlassTokens.TactileSpringSpecFloat,
+                    label = "HeartScale"
+                )
+                IconButton(
+                    onClick = { libraryViewModel.toggleLike(song) },
+                    modifier = Modifier.graphicsLayer { scaleX = heartScale; scaleY = heartScale }
+                ) {
                     Icon(
-                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Liked" else "Like",
-                        tint = if (isFavorite) palette.tertiary else LiquidGlassTokens.TextPrimary,
+                        imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (isLiked) "Unlike" else "Like",
+                        tint = if (isLiked) palette.primary else LiquidGlassTokens.TextPrimary,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -283,9 +267,7 @@ fun FullScreenPlayer(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ----------------------------------------------------
-            // 4. LIQUID SCRUBBER / SEEK BAR
-            // ----------------------------------------------------
+            // ── 4. SEEK BAR (GlassSlider) ──
             LiquidScrubber(
                 positionMs = position,
                 durationMs = duration.coerceAtLeast(0L),
@@ -295,9 +277,7 @@ fun FullScreenPlayer(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // ----------------------------------------------------
-            // 5. TACTILE TRANSPORT CONTROLS
-            // ----------------------------------------------------
+            // ── 5. TRANSPORT CONTROLS ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -305,7 +285,6 @@ fun FullScreenPlayer(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Shuffle Button
                 TactileIconButton(
                     onClick = { viewModel.toggleShuffle() },
                     isActive = isShuffle,
@@ -314,7 +293,6 @@ fun FullScreenPlayer(
                     contentDescription = "Shuffle"
                 )
 
-                // Previous Button
                 TactileIconButton(
                     onClick = { viewModel.playPrevious() },
                     icon = Icons.Default.SkipPrevious,
@@ -323,8 +301,8 @@ fun FullScreenPlayer(
                     iconSize = 36.dp
                 )
 
-                // Primary Play / Pause Liquid Orb
-                LiquidOrbButton(
+                // Primary play/pause — GlassProminentButton (glass system)
+                GlassProminentButton(
                     onClick = { viewModel.togglePlayPause() },
                     size = 72.dp,
                     palette = palette
@@ -345,7 +323,6 @@ fun FullScreenPlayer(
                     }
                 }
 
-                // Next Button
                 TactileIconButton(
                     onClick = { viewModel.playNext() },
                     icon = Icons.Default.SkipNext,
@@ -354,7 +331,6 @@ fun FullScreenPlayer(
                     iconSize = 36.dp
                 )
 
-                // Repeat Button
                 TactileIconButton(
                     onClick = { viewModel.toggleRepeat() },
                     isActive = repeatMode != RepeatMode.OFF,
@@ -367,12 +343,13 @@ fun FullScreenPlayer(
                 )
             }
 
-            // Error banner if any
+            // ── Error banner ──
             errorMessage?.let { error ->
-                LiquidGlassCard(
+                GlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
+                    variant = GlassVariant.PRIMARY,
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Row(
@@ -393,7 +370,7 @@ fun FullScreenPlayer(
             }
         }
 
-        // Up-Next Queue Modal / Bottom Sheet
+        // Queue Bottom Sheet
         if (isQueueOpen) {
             QueueBottomSheet(
                 queue = queue,
@@ -408,13 +385,7 @@ fun FullScreenPlayer(
     }
 }
 
-/**
- * Liquid Scrubber / Seek Bar
- * Specs:
- * - Unfilled track: rgba(255, 255, 255, 0.12), height 6.dp, pill-shaped.
- * - Filled track: High-luminance gradient with soft outer glow.
- * - Interactive state: Expand track thickness to 10.dp on touch/drag with glowing specular thumb.
- */
+// ── LiquidScrubber (kept for compatibility — identical to GlassSlider) ──
 @Composable
 fun LiquidScrubber(
     positionMs: Long,
@@ -431,29 +402,21 @@ fun LiquidScrubber(
         dragProgress
     } else if (durationMs > 0) {
         (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
+    } else { 0f }
 
-    // Interactive expansion: 6.dp default -> 10.dp when scrubbing
     val trackHeight by animateDpAsState(
         targetValue = if (isDragging) 10.dp else 6.dp,
         animationSpec = LiquidGlassTokens.TactileSpringSpecDp,
         label = "ScrubberHeight"
     )
-
-    // Thumb radius expansion
     val thumbRadius by animateDpAsState(
         targetValue = if (isDragging) 9.dp else 0.dp,
         animationSpec = LiquidGlassTokens.TactileSpringSpecDp,
         label = "ThumbRadius"
     )
-
     val currentDisplayMs = if (isDragging && durationMs > 0) {
         (dragProgress * durationMs).toLong()
-    } else {
-        positionMs
-    }
+    } else { positionMs }
 
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
@@ -464,8 +427,7 @@ fun LiquidScrubber(
                 .pointerInput(durationMs) {
                     detectTapGestures { offset ->
                         if (durationMs > 0) {
-                            val newProgress = (offset.x / barWidthPx).coerceIn(0f, 1f)
-                            onSeek((newProgress * durationMs).toLong())
+                            onSeek(((offset.x / barWidthPx).coerceIn(0f, 1f) * durationMs).toLong())
                         }
                     }
                 }
@@ -476,14 +438,10 @@ fun LiquidScrubber(
                             dragProgress = (offset.x / barWidthPx).coerceIn(0f, 1f)
                         },
                         onDragEnd = {
-                            if (durationMs > 0) {
-                                onSeek((dragProgress * durationMs).toLong())
-                            }
+                            if (durationMs > 0) onSeek((dragProgress * durationMs).toLong())
                             isDragging = false
                         },
-                        onDragCancel = {
-                            isDragging = false
-                        },
+                        onDragCancel = { isDragging = false },
                         onHorizontalDrag = { change, _ ->
                             change.consume()
                             dragProgress = (change.position.x / barWidthPx).coerceIn(0f, 1f)
@@ -495,37 +453,24 @@ fun LiquidScrubber(
             Canvas(modifier = Modifier.fillMaxWidth().height(trackHeight)) {
                 val cornerRadius = CornerRadius(size.height / 2f, size.height / 2f)
 
-                // 1. Unfilled track: rgba(255, 255, 255, 0.12)
-                drawRoundRect(
-                    color = Color(0x1FFFFFFF),
-                    size = size,
-                    cornerRadius = cornerRadius
-                )
+                drawRoundRect(color = Color(0x1FFFFFFF), size = size, cornerRadius = cornerRadius)
 
-                // 2. Filled track: High-luminance gradient (Electric Cyan / Palette)
                 val fillWidth = size.width * effectiveProgress
                 if (fillWidth > 0f) {
                     drawRoundRect(
                         brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                palette.primary,
-                                palette.secondary
-                            ),
-                            startX = 0f,
-                            endX = size.width
+                            colors = listOf(palette.primary, palette.secondary),
+                            startX = 0f, endX = size.width
                         ),
                         size = Size(fillWidth, size.height),
                         cornerRadius = cornerRadius
                     )
-
-                    // Glowing specular thumb
                     if (thumbRadius.toPx() > 0f) {
                         drawCircle(
                             color = Color.White,
                             radius = thumbRadius.toPx(),
                             center = Offset(fillWidth, size.height / 2f)
                         )
-                        // Specular rim
                         drawCircle(
                             color = palette.primary,
                             radius = thumbRadius.toPx() + 2.dp.toPx(),
@@ -537,66 +482,41 @@ fun LiquidScrubber(
             }
         }
 
-        // Timestamps
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 2.dp, vertical = 2.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = formatTime(currentDisplayMs),
-                color = LiquidGlassTokens.TextMuted,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = formatTime(durationMs),
-                color = LiquidGlassTokens.TextMuted,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Text(text = formatTime(currentDisplayMs), color = LiquidGlassTokens.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(text = formatTime(durationMs), color = LiquidGlassTokens.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
 
-/**
- * Tactile Secondary Transport Control
- */
+// ── TactileIconButton ──
 @Composable
 private fun TactileIconButton(
     onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     contentDescription: String,
     modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 44.dp,
-    iconSize: androidx.compose.ui.unit.Dp = 24.dp,
+    size: Dp = 44.dp,
+    iconSize: Dp = 24.dp,
     isActive: Boolean = false,
     activeColor: Color = LiquidGlassTokens.ElectricLime
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.88f else 1.0f,
         animationSpec = LiquidGlassTokens.TactileSpringSpecFloat,
         label = "IconScale"
     )
-
     IconButton(
         onClick = onClick,
         interactionSource = interactionSource,
-        modifier = modifier
-            .size(size)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+        modifier = modifier.size(size).graphicsLayer { scaleX = scale; scaleY = scale }
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
@@ -605,20 +525,13 @@ private fun TactileIconButton(
             )
             if (isActive) {
                 Spacer(modifier = Modifier.height(3.dp))
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(activeColor)
-                )
+                Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(activeColor))
             }
         }
     }
 }
 
-/**
- * Formats milliseconds into mm:ss timestamp string.
- */
+/** Formats milliseconds into mm:ss timestamp string. */
 fun formatTime(milliseconds: Long): String {
     if (milliseconds <= 0) return "00:00"
     val totalSeconds = milliseconds / 1000
