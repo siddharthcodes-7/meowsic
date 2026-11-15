@@ -1,277 +1,287 @@
 package com.surya.meowsic.presentation.player
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.surya.meowsic.presentation.library.LibraryViewModel
 import com.surya.meowsic.presentation.search.SearchViewModel
-import com.surya.meowsic.ui.glass.GlassSurface
-import com.surya.meowsic.ui.glass.GlassVariant
-import com.surya.meowsic.ui.glass.GlassTokens
-import com.surya.meowsic.ui.theme.LiquidGlassTokens
-import com.surya.meowsic.ui.theme.LocalAmbientPalette
+import com.surya.meowsic.ui.glass.AutoScrollingText
+import com.surya.meowsic.ui.glass.LocalAmbientPalette
+import kotlin.math.max
 
+/**
+ * Meowsic MiniPlayer implementation: presentation/components/UnifiedPlayerSheetShared.kt (MiniPlayerContentInternal)
+ */
 @Composable
 fun MiniPlayer(
     viewModel: SearchViewModel,
     modifier: Modifier = Modifier,
     onOpenFullScreen: () -> Unit = { viewModel.openFullScreen() }
 ) {
-    val currentSong by viewModel.currentSong.collectAsState()
+    val song by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isResolving by viewModel.isResolving.collectAsState()
     val isBuffering by viewModel.isBuffering.collectAsState()
+    val positionMs by viewModel.playbackPosition.collectAsState()
+    val durationMs by viewModel.duration.collectAsState()
+
+    val currentSong = song ?: return
     val palette = LocalAmbientPalette.current
-    val libraryViewModel: LibraryViewModel = viewModel()
+    val haptic = LocalHapticFeedback.current
 
-    AnimatedVisibility(
-        visible = currentSong != null,
-        enter = slideInVertically(
-            initialOffsetY = { it },
-            animationSpec = LiquidGlassTokens.SlideSpringSpec
-        ),
-        exit = slideOutVertically(
-            targetOffsetY = { it },
-            animationSpec = LiquidGlassTokens.SlideSpringSpec
-        ),
+    val isLoading = isResolving || isBuffering
+    val progress = if (durationMs > 0L) {
+        (positionMs.toFloat() / max(durationMs, 1L).toFloat()).coerceIn(0f, 1f)
+    } else 0f
+
+    val containerBg by animateColorAsState(
+        targetValue = palette.primaryContainer,
+        animationSpec = tween(400),
+        label = "miniPlayerBg"
+    )
+
+    var horizontalDrag by remember { mutableFloatStateOf(0f) }
+    var verticalDrag by remember { mutableFloatStateOf(0f) }
+
+    Surface(
         modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onOpenFullScreen()
+            }
+            .pointerInput(currentSong.id) {
+                detectHorizontalDragGestures(
+                    onDragStart = { horizontalDrag = 0f },
+                    onDragEnd = {
+                        if (horizontalDrag < -90f) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.playNext(true)
+                        } else if (horizontalDrag > 90f) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.playPrevious()
+                        }
+                        horizontalDrag = 0f
+                    }
+                ) { change, dragAmount ->
+                    change.consume()
+                    horizontalDrag += dragAmount
+                }
+            }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragStart = { verticalDrag = 0f },
+                    onDragEnd = {
+                        if (verticalDrag < -45f) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onOpenFullScreen()
+                        }
+                        verticalDrag = 0f
+                    }
+                ) { change, dragAmount ->
+                    change.consume()
+                    verticalDrag += dragAmount
+                }
+            },
+        shape = RoundedCornerShape(28.dp),
+        color = containerBg,
+        tonalElevation = 8.dp,
+        shadowElevation = 10.dp
     ) {
-        val song = currentSong ?: return@AnimatedVisibility
-        val isLiked by libraryViewModel.isLiked(song.id).collectAsState(initial = false)
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 4.dp)
-        ) {
-            GlassSurface(
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onOpenFullScreen
-                    ),
-                variant = GlassVariant.ELEVATED,
-                shape = RoundedCornerShape(GlassTokens.CornerMiniPlayer)
+                    .height(66.dp)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // Main row: artwork | title+artist | like | play | skip
-                    Row(
+                // Circular Artwork + Buffering Spinner Overlay (Meowsic style)
+                Box(
+                    modifier = Modifier.size(46.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(72.dp)
-                            .padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .size(44.dp)
+                            .clip(CircleShape),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
-                        // Artwork
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF181818)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (song.thumbnailUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = song.thumbnailUrl,
-                                    contentDescription = song.title,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        // Title & artist
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = song.title,
-                                color = LiquidGlassTokens.TextPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = when {
-                                    isResolving -> "Resolving stream..."
-                                    isBuffering -> "Buffering..."
-                                    else -> song.artist
-                                },
-                                color = if (isResolving || isBuffering)
-                                    palette.primary
-                                else
-                                    LiquidGlassTokens.TextSecondary,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        // Heart / Like button (animated)
-                        val heartScale by animateFloatAsState(
-                            targetValue = if (isLiked) 1.25f else 1.0f,
-                            animationSpec = LiquidGlassTokens.TactileSpringSpecFloat,
-                            label = "MiniPlayerHeartScale"
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .graphicsLayer { scaleX = heartScale; scaleY = heartScale }
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    onClick = { libraryViewModel.toggleLike(song) }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = if (isLiked) "Unlike" else "Like",
-                                tint = if (isLiked) palette.primary else LiquidGlassTokens.TextMuted,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        // Play / Pause
-                        if (isResolving || isBuffering) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .padding(horizontal = 6.dp)
-                                    .size(24.dp),
-                                color = palette.primary,
-                                strokeWidth = 2.5.dp
+                        if (currentSong.thumbnailUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = currentSong.thumbnailUrl,
+                                contentDescription = currentSong.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
                             )
                         } else {
                             Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.radialGradient(
-                                            colors = listOf(
-                                                palette.primary.copy(alpha = 0.90f),
-                                                palette.secondary.copy(alpha = 0.80f)
-                                            )
-                                        )
-                                    )
-                                    .clickable(
-                                        indication = null,
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        onClick = { viewModel.togglePlayPause() }
-                                    ),
+                                modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) "Pause" else "Play",
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(20.dp)
+                                    imageVector = Icons.Rounded.MusicNote,
+                                    contentDescription = null,
+                                    tint = palette.onPrimaryContainer
                                 )
                             }
                         }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        // Skip next
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    onClick = { viewModel.playNext() }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SkipNext,
-                                contentDescription = "Next Song",
-                                tint = LiquidGlassTokens.TextPrimary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
                     }
 
-                    // Isolated progress bar: only this leaf recomposes on progress ticks
-                    MiniPlayerProgressBar(viewModel = viewModel, palette = palette)
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(46.dp),
+                            color = palette.primary,
+                            strokeWidth = 2.5.dp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // AutoScrolling Title & Artist
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    AutoScrollingText(
+                        text = currentSong.title,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = palette.onPrimaryContainer
+                    )
+                    AutoScrollingText(
+                        text = if (isResolving) "Loading stream..." else currentSong.artist,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp),
+                        color = palette.onPrimaryContainer.copy(alpha = 0.75f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Previous Button (36.dp circle)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(palette.onPrimary)
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.playPrevious()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SkipPrevious,
+                        contentDescription = "Previous",
+                        tint = palette.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Play/Pause Button (38.dp circle in Primary)
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(palette.primary)
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.togglePlayPause()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = palette.onPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Next Button (36.dp circle)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(palette.onPrimary)
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.playNext(true)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SkipNext,
+                        contentDescription = "Next",
+                        tint = palette.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
+
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .padding(horizontal = 16.dp),
+                color = palette.primary,
+                trackColor = palette.onPrimaryContainer.copy(alpha = 0.16f),
+                strokeCap = StrokeCap.Round
+            )
         }
-    }
-}
-
-@Composable
-private fun MiniPlayerProgressBar(
-    viewModel: SearchViewModel,
-    palette: LiquidGlassTokens.AmbientPalette
-) {
-    val position by viewModel.playbackPosition.collectAsState()
-    val duration by viewModel.duration.collectAsState()
-
-    val progress = if (duration > 0) {
-        (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(2.dp)
-            .background(Color(0x1AFFFFFF))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(progress)
-                .fillMaxHeight()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(palette.primary, palette.secondary)
-                    )
-                )
-        )
     }
 }
