@@ -1,190 +1,225 @@
 package com.surya.meowsic.ui.theme
 
-import androidx.compose.animation.core.CubicBezierEasing
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.dp
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-/**
- * AMOLED Liquid Glass Design System Tokens
- *
- * Implements an optical architecture where 75%+ of the screen is true AMOLED #000000 void,
- * refracted by localized ambient light emitters placed behind frosted glass chrome.
- */
+object GlassTokens {
+    val CardCornerRadius: Dp = 24.dp
+    val SheetCornerRadius: Dp = 32.dp
+    val MiniPlayerCornerRadius: Dp = 32.dp
+    val PillCornerRadius: Dp = 50.dp
+    val SongItemCornerRadius: Dp = 22.dp
+    val SongArtCornerRadius: Dp = 12.dp
+    val DefaultBlurRadius: Dp = 24.dp
+    val BorderWidth: Dp = 1.dp
+
+    val supportsBlur: Boolean
+        get() = false
+}
+
 object LiquidGlassTokens {
+    val CardShape = RoundedCornerShape(24.dp)
+    val PillShape = CircleShape
+    val SheetTopShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
 
-    // ------------------------------------------------------------------------
-    // 1. CANVAS & OLED SURFACES
-    // ------------------------------------------------------------------------
-
-    /** Pure AMOLED black — 0% pixel illumination on OLED panels */
-    val AmoledVoid = Color(0xFF000000)
-
-    /** Near-opaque OLED surface fallback for accessibility & low-power mode */
-    val SurfaceOledFallback = Color(0xFF0D0D11)
-
-    /** Elevated OLED surface variant */
-    val SurfaceElevated = Color(0xFF151515)
-
-    /** Ambient color transition duration */
-    const val DurationAmbient = 800
-
-    /** Primary Glass Surface (linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%)) */
-    val SurfaceGlassPrimary = Brush.linearGradient(
-        colors = listOf(
-            Color(0x1FFFFFFF), // rgba(255, 255, 255, 0.12)
-            Color(0x08FFFFFF)  // rgba(255, 255, 255, 0.03)
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-    )
-
-    /** Elevated Glass Surface (linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 100%)) */
-    val SurfaceGlassElevated = Brush.linearGradient(
-        colors = listOf(
-            Color(0x2EFFFFFF), // rgba(255, 255, 255, 0.18)
-            Color(0x0DFFFFFF)  // rgba(255, 255, 255, 0.05)
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-    )
-
-    /** Active / Pressed Glass Surface (rgba(255, 255, 255, 0.22)) */
-    val SurfaceGlassActive = Color(0x38FFFFFF)
-
-    /** Pill/Sheet Drag Handle & Accent Indicators (rgba(255, 255, 255, 0.30)) */
-    val DragHandleColor = Color(0x4DFFFFFF)
-
-    // ------------------------------------------------------------------------
-    // 2. SPECULAR 3D RIM LIGHTING (Refraction & Liquid Bevels)
-    // ------------------------------------------------------------------------
-
-    /** Specular top/left light-catching edge gradient (rgba(255, 255, 255, 0.24) -> 0.04) */
-    val SpecularRimGradient = Brush.linearGradient(
-        colors = listOf(
-            Color(0x3DFFFFFF), // rgba(255, 255, 255, 0.24)
-            Color(0x0AFFFFFF)  // rgba(255, 255, 255, 0.04)
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-    )
-
-    /** Solid subtle specular rim border (rgba(255, 255, 255, 0.24)) */
-    val SpecularRimBorder = Color(0x3DFFFFFF)
-
-    /** Inner refraction top bevel highlight (rgba(255, 255, 255, 0.55)) */
-    val SpecularBevelHighlight = Color(0x8CFFFFFF)
-
-    /** Inner refraction bottom shadow (rgba(255, 255, 255, 0.08)) */
-    val SpecularBevelShadow = Color(0x14FFFFFF)
-
-    /** Deep outer elevation shadow color (rgba(0, 0, 0, 0.85)) */
-    val ElevationShadow = Color(0xD9000000)
-
-    // ------------------------------------------------------------------------
-    // 3. AMBIENT LIGHT EMITTERS (Dynamic Palette & Fallbacks)
-    // ------------------------------------------------------------------------
-
-    /** Fallback Dominant Color: Electric Cyan */
-    val ElectricCyan = Color(0xFF00F0FF)
-
-    /** Fallback Secondary Color: Deep Violet */
-    val DeepViolet = Color(0xFF7000FF)
-
-    /** Fallback Accent Color: Crimson */
-    val Crimson = Color(0xFFFF0055)
-
-    /** Brand Primary Accent: Electric Lime */
-    val ElectricLime = Color(0xFFB9F36A)
-
-    /**
-     * Ambient color triplet container for localized radial light emitters
-     */
-    data class AmbientPalette(
-        val primary: Color,
-        val secondary: Color,
-        val tertiary: Color
-    )
-
-    val DefaultPalette = AmbientPalette(
-        primary = ElectricCyan,
-        secondary = DeepViolet,
-        tertiary = Crimson
-    )
-
-    /**
-     * Algorithmic, deterministic palette generator based on song metadata.
-     * Always provides vibrant, high-contrast emitters tailored to the track,
-     * harmonizing with the Electric Cyan / Deep Violet / Crimson design spec.
-     */
-    fun getAmbientPaletteForSong(seed: String?): AmbientPalette {
-        if (seed.isNullOrBlank()) return DefaultPalette
-        val hash = seed.hashCode()
-
-        val palettes = listOf(
-            AmbientPalette(ElectricCyan, DeepViolet, Crimson),
-            AmbientPalette(Color(0xFF00F5D4), Color(0xFF7B2CBF), Color(0xFFFF007F)),
-            AmbientPalette(Color(0xFF3A86FF), Color(0xFF8338EC), Color(0xFFFF006E)),
-            AmbientPalette(ElectricLime, Color(0xFF00B4D8), Color(0xFF7209B7)),
-            AmbientPalette(Color(0xFFFF9E00), Color(0xFFFF0055), Color(0xFF7000FF)),
-            AmbientPalette(Color(0xFF00F0FF), Color(0xFF10B981), Color(0xFF6366F1))
-        )
-        val index = (hash and 0x7FFFFFFF) % palettes.size
-        return palettes[index]
-    }
-
-    // ------------------------------------------------------------------------
-    // 4. TYPOGRAPHY & CONTRAST
-    // ------------------------------------------------------------------------
-
-    /** Pure white header & title text with optical tracking */
-    val TextPrimary = Color(0xFFFFFFFF)
-
-    /** Secondary metadata text (rgba(255, 255, 255, 0.68)) */
-    val TextSecondary = Color(0xADFFFFFF)
-
-    /** Muted timestamps & inactive controls (rgba(255, 255, 255, 0.42)) */
-    val TextMuted = Color(0x6BFFFFFF)
-
-    /** Optical tracking for headers: -0.02em */
-    val HeaderLetterSpacing: TextUnit = (-0.02).em
-
-    // ------------------------------------------------------------------------
-    // 5. MOTION PHYSICS
-    // ------------------------------------------------------------------------
-
-    /** Motion curve: cubic-bezier(0.22, 1, 0.36, 1) */
-    val LiquidCubicBezier = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)
-
-    /** Responsive spring for interactive press and scale effects (Float) */
-    val TactileSpringSpecFloat = spring<Float>(
+    fun InteractiveSpring() = spring<Float>(
         dampingRatio = Spring.DampingRatioMediumBouncy,
-        stiffness = Spring.StiffnessMedium
-    )
-
-    /** Responsive spring for Dp animations (e.g. Scrubber thickness) - critically damped so Dp animations never overshoot < 0.dp */
-    val TactileSpringSpecDp = spring<Dp>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = 900f,
-        visibilityThreshold = Dp.VisibilityThreshold
-    )
-
-    /** Smooth spring for slide transitions (IntOffset) */
-    val SlideSpringSpec = spring<IntOffset>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessMediumLow
     )
 
-    /** Smooth spring for layout and size expansions (Float) */
-    val SmoothSpringSpec = spring<Float>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessLow
+    @Immutable
+    data class AmbientPalette(
+        val primary: Color,
+        val secondary: Color,
+        val tertiary: Color,
+        val surfaceTint: Color,
+        val accent: Color,
+        val onPrimary: Color = Color(0xFF1E1234),
+        val primaryContainer: Color = Color(0xFF3B235A),
+        val onPrimaryContainer: Color = Color(0xFFF3E5F5),
+        val surfaceContainer: Color = Color(0xFF1F1630),
+        val surfaceContainerHigh: Color = Color(0xFF2B2042)
     )
+
+    val DefaultPalette = AmbientPalette(
+        primary = Color(0xFFD0BCFF),
+        secondary = Color(0xFFF06292),
+        tertiary = Color(0xFFFF8A65),
+        surfaceTint = Color(0xFF2A1F40),
+        accent = Color(0xFFCE93D8),
+        onPrimary = Color(0xFF2A1246),
+        primaryContainer = Color(0xFF422866),
+        onPrimaryContainer = Color(0xFFF5EAFF),
+        surfaceContainer = Color(0xFF1B132B),
+        surfaceContainerHigh = Color(0xFF271D3D)
+    )
+
+    private val paletteCache = object : LinkedHashMap<String, AmbientPalette>(40, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, AmbientPalette>?): Boolean {
+            return size > 32
+        }
+    }
+
+    @Composable
+    fun rememberAmbientPalette(thumbnailUrl: String?): State<AmbientPalette> {
+        val context = LocalContext.current
+        var targetPalette by remember { mutableStateOf(DefaultPalette) }
+
+        LaunchedEffect(thumbnailUrl) {
+            if (thumbnailUrl.isNullOrBlank()) {
+                targetPalette = DefaultPalette
+                return@LaunchedEffect
+            }
+            val cached = synchronized(paletteCache) { paletteCache[thumbnailUrl] }
+            if (cached != null) {
+                targetPalette = cached
+                return@LaunchedEffect
+            }
+            val extracted = withContext(Dispatchers.IO) {
+                runCatching {
+                    val loader = ImageLoader(context)
+                    val request = ImageRequest.Builder(context)
+                        .data(thumbnailUrl)
+                        .size(64, 64)
+                        .allowHardware(false)
+                        .build()
+                    val result = loader.execute(request)
+                    val bitmap = ((result as? SuccessResult)?.drawable as? BitmapDrawable)?.bitmap
+                    if (bitmap != null) extractFromBitmap(bitmap) else DefaultPalette
+                }.getOrDefault(DefaultPalette)
+            }
+            synchronized(paletteCache) {
+                paletteCache[thumbnailUrl] = extracted
+            }
+            targetPalette = extracted
+        }
+
+        val animSpec = tween<Color>(durationMillis = 550, easing = FastOutSlowInEasing)
+        val primary by animateColorAsState(targetPalette.primary, animSpec, label = "palPrimary")
+        val secondary by animateColorAsState(targetPalette.secondary, animSpec, label = "palSecondary")
+        val tertiary by animateColorAsState(targetPalette.tertiary, animSpec, label = "palTertiary")
+        val surfaceTint by animateColorAsState(targetPalette.surfaceTint, animSpec, label = "palSurface")
+        val accent by animateColorAsState(targetPalette.accent, animSpec, label = "palAccent")
+        val onPrimary by animateColorAsState(targetPalette.onPrimary, animSpec, label = "palOnPrimary")
+        val primaryContainer by animateColorAsState(targetPalette.primaryContainer, animSpec, label = "palPrimaryContainer")
+        val onPrimaryContainer by animateColorAsState(targetPalette.onPrimaryContainer, animSpec, label = "palOnPrimaryContainer")
+        val surfaceContainer by animateColorAsState(targetPalette.surfaceContainer, animSpec, label = "palSurfaceContainer")
+        val surfaceContainerHigh by animateColorAsState(targetPalette.surfaceContainerHigh, animSpec, label = "palSurfaceContainerHigh")
+
+        return remember(
+            primary, secondary, tertiary, surfaceTint, accent,
+            onPrimary, primaryContainer, onPrimaryContainer, surfaceContainer, surfaceContainerHigh
+        ) {
+            mutableStateOf(
+                AmbientPalette(
+                    primary = primary,
+                    secondary = secondary,
+                    tertiary = tertiary,
+                    surfaceTint = surfaceTint,
+                    accent = accent,
+                    onPrimary = onPrimary,
+                    primaryContainer = primaryContainer,
+                    onPrimaryContainer = onPrimaryContainer,
+                    surfaceContainer = surfaceContainer,
+                    surfaceContainerHigh = surfaceContainerHigh
+                )
+            )
+        }
+    }
+
+    private fun extractFromBitmap(bitmap: Bitmap): AmbientPalette {
+        val w = bitmap.width.coerceAtLeast(1)
+        val h = bitmap.height.coerceAtLeast(1)
+        var rSum = 0L
+        var gSum = 0L
+        var bSum = 0L
+        var count = 0L
+        var vibrantColor: Color? = null
+        var maxSat = 0f
+
+        val stepX = (w / 12).coerceAtLeast(1)
+        val stepY = (h / 12).coerceAtLeast(1)
+        val hsv = FloatArray(3)
+
+        for (y in 0 until h step stepY) {
+            for (x in 0 until w step stepX) {
+                val argb = bitmap.getPixel(x, y)
+                val r = (argb shr 16) and 0xFF
+                val g = (argb shr 8) and 0xFF
+                val b = argb and 0xFF
+                rSum += r
+                gSum += g
+                bSum += b
+                count++
+
+                android.graphics.Color.RGBToHSV(r, g, b, hsv)
+                val sat = hsv[1]
+                val v = hsv[2]
+                if (sat > maxSat && v in 0.25f..0.95f) {
+                    maxSat = sat
+                    vibrantColor = Color(r, g, b)
+                }
+            }
+        }
+
+        if (count == 0L) return DefaultPalette
+        val avgR = (rSum / count).toInt()
+        val avgG = (gSum / count).toInt()
+        val avgB = (bSum / count).toInt()
+        val base = vibrantColor ?: Color(avgR, avgG, avgB)
+
+        val lightPrimary = lerpColor(base, Color.White, 0.38f)
+        val darkContainer = lerpColor(base, Color(0xFF140D22), 0.62f)
+        val surfaceContainer = lerpColor(base, Color(0xFF120C1E), 0.78f)
+        val surfaceContainerHigh = lerpColor(base, Color(0xFF1C142E), 0.70f)
+        val onPri = if (lightPrimary.luminance() > 0.45f) Color(0xFF1D102B) else Color.White
+
+        return AmbientPalette(
+            primary = lightPrimary,
+            secondary = lerpColor(base, MeowsicPink, 0.35f),
+            tertiary = lerpColor(base, MeowsicOrange, 0.35f),
+            surfaceTint = darkContainer,
+            accent = lightPrimary,
+            onPrimary = onPri,
+            primaryContainer = darkContainer,
+            onPrimaryContainer = lerpColor(lightPrimary, Color.White, 0.55f),
+            surfaceContainer = surfaceContainer,
+            surfaceContainerHigh = surfaceContainerHigh
+        )
+    }
+
+    private fun lerpColor(start: Color, stop: Color, fraction: Float): Color {
+        val f = fraction.coerceIn(0f, 1f)
+        return Color(
+            red = start.red + (stop.red - start.red) * f,
+            green = start.green + (stop.green - start.green) * f,
+            blue = start.blue + (stop.blue - start.blue) * f,
+            alpha = start.alpha + (stop.alpha - start.alpha) * f
+        )
+    }
 }
