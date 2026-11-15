@@ -1,43 +1,22 @@
 package com.surya.meowsic.ui.glass
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.surya.meowsic.ui.theme.LiquidGlassTokens
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
 
-/**
- * Provides a [HazeState] to child composables so that all glass surfaces
- * share ONE backdrop layer per screen — never create per-item.
- *
- * Usage:
- * ```
- * GlassBackdropHost { hazeState ->
- *     Box(Modifier.haze(hazeState)) {    // content that acts as the blurred backdrop
- *         ScreenContent()
- *     }
- *     GlassSurface(hazeState = hazeState) { ... }  // chrome on top
- * }
- * ```
- */
 val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
+val LocalAmbientPalette = staticCompositionLocalOf { LiquidGlassTokens.DefaultPalette }
 
-@Composable
-fun GlassBackdropHost(
-    content: @Composable (hazeState: HazeState) -> Unit
-) {
-    val hazeState = remember { HazeState() }
-    CompositionLocalProvider(LocalHazeState provides hazeState) {
-        content(hazeState)
-    }
-}
-
-/**
- * Strips LocalHazeState inside Dialogs, ModalBottomSheets, or hazeSource subtrees
- * so descendants never attach a recursive or cross-window Modifier.hazeEffect.
- */
 @Composable
 fun WithoutHaze(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalHazeState provides null) {
@@ -45,15 +24,33 @@ fun WithoutHaze(content: @Composable () -> Unit) {
     }
 }
 
-fun Modifier.glassBackdrop(hazeState: HazeState): Modifier =
-    this.hazeSource(state = hazeState)
-
-/**
- * Convenience Modifier extension: marks a composable as the backdrop source.
- * Equivalent to `Modifier.haze(hazeState)` but reads from [LocalHazeState].
- */
 @Composable
-fun Modifier.glassBackdrop(): Modifier {
-    val hazeState = LocalHazeState.current ?: return this
-    return this.hazeSource(hazeState)
+fun GlassBackdrop(
+    thumbnailUrl: String?,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier,
+    enableBlur: Boolean = false,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val paletteState = LiquidGlassTokens.rememberAmbientPalette(thumbnailUrl)
+    val palette = paletteState.value
+    val backgroundBrush = Brush.verticalGradient(
+        colors = listOf(
+            palette.surfaceContainerHigh.copy(alpha = 0.85f),
+            MaterialTheme.colorScheme.background,
+            Color(0xFF0E0918)
+        )
+    )
+
+    CompositionLocalProvider(
+        LocalHazeState provides null,
+        LocalAmbientPalette provides palette
+    ) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(backgroundBrush),
+            content = content
+        )
+    }
 }
