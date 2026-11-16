@@ -1,31 +1,50 @@
 package com.surya.meowsic.presentation.library
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import androidx.compose.ui.window.Dialog
 import com.surya.meowsic.data.local.model.PlaylistWithCount
 import com.surya.meowsic.domain.Song
-import com.surya.meowsic.ui.glass.GlassSheet
-import com.surya.meowsic.ui.theme.LiquidGlassTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,118 +55,99 @@ fun AddToPlaylistSheet(
     onDismiss: () -> Unit,
     onCreatePlaylist: (String) -> Unit
 ) {
-    var showCreateDialog by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showNewNameDialog by remember { mutableStateOf(false) }
 
-    GlassSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = 500.dp)
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
         ) {
-            // Header
-            Text(
-                text = "Add to playlist",
-                color = LiquidGlassTokens.TextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                // "New playlist" row at top
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { showCreateDialog = true }
-                            .padding(vertical = 12.dp, horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF1A1A2E)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = LiquidGlassTokens.TextPrimary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Text(
-                            text = "New playlist",
-                            color = LiquidGlassTokens.TextPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(Color(0x1AFFFFFF)))
-                    Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Add to Playlist",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
-                items(playlists) { pwc ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                onAddToPlaylist(pwc.playlist.id)
-                                onDismiss()
-                            }
-                            .padding(vertical = 10.dp, horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
+                FilledTonalButton(
+                    onClick = { showNewNameDialog = true },
+                    shape = CircleShape
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("New")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            if (playlists.isEmpty()) {
+                Text(
+                    text = "No playlists yet. Tap 'New' to create one.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 24.dp)
+                )
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(playlists, key = { it.playlist.id }) { item ->
+                        Surface(
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF181818)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable { onAddToPlaylist(item.playlist.id) },
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh
                         ) {
-                            if (pwc.playlist.coverImagePath != null) {
-                                AsyncImage(
-                                    model = pwc.playlist.coverImagePath,
-                                    contentDescription = pwc.playlist.name,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.MusicNote,
+                                    imageVector = Icons.AutoMirrored.Rounded.PlaylistAdd,
                                     contentDescription = null,
-                                    tint = LiquidGlassTokens.TextMuted,
-                                    modifier = Modifier.size(20.dp)
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.playlist.name,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "${item.songCount} songs",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = pwc.playlist.name,
-                                color = LiquidGlassTokens.TextPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "${pwc.songCount} songs",
-                                color = LiquidGlassTokens.TextMuted,
-                                fontSize = 12.sp
-                            )
                         }
                     }
                 }
@@ -155,15 +155,14 @@ fun AddToPlaylistSheet(
         }
     }
 
-    if (showCreateDialog) {
+    if (showNewNameDialog) {
         SimpleNameDialog(
-            title = "New playlist",
-            placeholder = "Playlist name",
-            onDismiss = { showCreateDialog = false },
-            onConfirm = { name ->
-                onCreatePlaylist(name)
-                showCreateDialog = false
-                onDismiss()
+            title = "New Playlist",
+            initialValue = "",
+            onDismiss = { showNewNameDialog = false },
+            onConfirm = { newName ->
+                showNewNameDialog = false
+                onCreatePlaylist(newName)
             }
         )
     }
@@ -172,47 +171,61 @@ fun AddToPlaylistSheet(
 @Composable
 fun SimpleNameDialog(
     title: String,
-    placeholder: String,
+    initialValue: String,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
-    var text by remember { mutableStateOf("") }
+    var text by remember(initialValue) { mutableStateOf(initialValue) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(text = title, color = LiquidGlassTokens.TextPrimary, fontWeight = FontWeight.Bold)
-        },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text(placeholder, color = LiquidGlassTokens.TextMuted) },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = LiquidGlassTokens.TextPrimary,
-                    unfocusedTextColor = LiquidGlassTokens.TextPrimary,
-                    focusedBorderColor = Color(0xFF7B2FBE),
-                    unfocusedBorderColor = Color(0x40FFFFFF),
-                    cursorColor = Color(0xFF7B2FBE)
-                )
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { if (text.isNotBlank()) onConfirm(text.trim()) },
-                enabled = text.isNotBlank()
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Save", color = Color(0xFF7B2FBE))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val trimmed = text.trim()
+                            if (trimmed.isNotEmpty()) onConfirm(trimmed)
+                        },
+                        enabled = text.isNotBlank(),
+                        shape = CircleShape
+                    ) {
+                        Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Save")
+                    }
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = LiquidGlassTokens.TextMuted)
-            }
-        },
-        containerColor = Color(0xFF0D0D16),
-        titleContentColor = LiquidGlassTokens.TextPrimary,
-        textContentColor = LiquidGlassTokens.TextPrimary
-    )
+        }
+    }
 }
